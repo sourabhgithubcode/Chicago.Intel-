@@ -1,0 +1,1652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chicago Living Intelligence</title>
+<style>
+
+/* ═══════════════════════════════════════════════
+   IMPORTS & RESET
+═══════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Fira+Code:wght@300;400;500&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  width:100vw;height:100vh;overflow:hidden;
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;
+  -webkit-font-smoothing:antialiased;
+  color:var(--t0);
+  background:#050810;
+}
+
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
+:root {
+  /* Aurora BG colors */
+  --bg:          #050810;
+  --bg2:         #08101e;
+
+  /* Glass surfaces — 3 depth levels */
+  --g1-bg:       rgba(4,10,24,0.90);
+  --g1-bd:       rgba(255,255,255,0.072);
+  --g1-blur:     blur(28px) saturate(180%) brightness(1.05);
+
+  --g2-bg:       rgba(14,22,45,0.82);
+  --g2-bd:       rgba(255,255,255,0.16);
+  --g2-blur:     blur(18px) saturate(160%);
+
+  --g3-bg:       rgba(18,28,52,0.88);
+  --g3-bd:       rgba(255,255,255,0.24);
+  --g3-blur:     blur(12px) saturate(140%);
+
+  /* Text hierarchy */
+  --t0: #f5f8ff;
+  --t1: #d0e0f8;
+  --t2: #a8bcd8;
+  --t3: #4a6080;
+
+  /* Brand accents */
+  --lime:    #a8ff78;
+  --cyan:    #38bdf8;
+  --violet:  #c084fc;
+  --amber:   #fcd34d;
+  --rose:    #fb7185;
+  --teal:    #2dd4bf;
+
+  /* Zone palette */
+  --z0: #a8ff78; --z1: #6ee7b7; --z2: #fcd34d; --z3: #fb923c; --z4: #7c3322;
+
+  /* Glow shadows */
+  --glow-lime:   0 0 32px rgba(168,255,120,.14);
+  --glow-cyan:   0 0 32px rgba(56,189,248,.14);
+  --glow-violet: 0 0 32px rgba(192,132,252,.12);
+
+  --r:    18px;
+  --r-sm: 11px;
+  --r-xs: 7px;
+
+  --cell-shadow: 0 4px 24px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.05) inset;
+}
+
+/* ═══════════════════════════════════════════════
+   AURORA BACKGROUND — layered animated orbs
+═══════════════════════════════════════════════ */
+#aurora {
+  position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+}
+.orb {
+  position:absolute;border-radius:50%;filter:blur(90px);
+  animation: drift 18s ease-in-out infinite alternate;
+  mix-blend-mode:screen;
+}
+.orb1{ width:700px;height:500px;top:-180px;left:-200px; background:radial-gradient(ellipse,rgba(56,189,248,.18),transparent 70%); animation-duration:20s; }
+.orb2{ width:600px;height:600px;bottom:-250px;right:-150px; background:radial-gradient(ellipse,rgba(168,255,120,.12),transparent 70%); animation-duration:26s;animation-delay:-8s; }
+.orb3{ width:500px;height:400px;top:30%;left:35%; background:radial-gradient(ellipse,rgba(192,132,252,.1),transparent 70%); animation-duration:22s;animation-delay:-4s; }
+.orb4{ width:350px;height:350px;top:15%;right:20%; background:radial-gradient(ellipse,rgba(45,212,191,.08),transparent 70%); animation-duration:30s;animation-delay:-12s; }
+
+@keyframes drift {
+  0%  { transform:translate(0,0) scale(1); }
+  33% { transform:translate(40px,-30px) scale(1.05); }
+  66% { transform:translate(-20px,50px) scale(.95); }
+  100%{ transform:translate(60px,20px) scale(1.08); }
+}
+
+/* Noise grain overlay */
+#aurora::after {
+  content:'';position:absolute;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity:.022;pointer-events:none;
+}
+
+/* ═══════════════════════════════════════════════
+   BENTO GRID — 5 col × 7 row named areas
+═══════════════════════════════════════════════ */
+.bento {
+  position:relative;z-index:1;
+  width:100vw;height:100vh;
+  padding:9px;gap:7px;
+  display:grid;
+  grid-template-columns: 214px 1fr 1fr 194px 194px;
+  grid-template-rows: 50px 1fr 1fr 1fr 1fr 1fr 44px;
+  grid-template-areas:
+    "hdr   hdr  hdr  hdr   hdr"
+    "ctrl  map  map  det   det"
+    "ctrl  map  map  det   det"
+    "ctrl  map  map  kpi-a kpi-b"
+    "ctrl  map  map  kpi-c kpi-d"
+    "ctrl  bar  bar  leg   ins"
+    "foot  foot foot foot  foot";
+}
+
+/* ═══════════════════════════════════════════════
+   GLASS CELL BASE
+═══════════════════════════════════════════════ */
+.cell {
+  background:var(--g1-bg);
+  backdrop-filter:var(--g1-blur);
+  -webkit-backdrop-filter:var(--g1-blur);
+  border:1px solid var(--g1-bd);
+  border-radius:var(--r);
+  box-shadow:var(--cell-shadow);
+  overflow:hidden;
+  position:relative;
+  transition:border-color .2s;
+}
+/* Top sheen */
+.cell::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,.18) 40%,rgba(255,255,255,.08) 70%,transparent 100%);
+  pointer-events:none;z-index:1;
+}
+.cell:hover { border-color:rgba(255,255,255,.11); }
+
+/* Deeper glass for inner elements */
+.glass2 {
+  background:var(--g2-bg);
+  backdrop-filter:var(--g2-blur);
+  -webkit-backdrop-filter:var(--g2-blur);
+  border:1px solid var(--g2-bd);
+  border-radius:var(--r-sm);
+}
+.glass3 {
+  background:var(--g3-bg);
+  backdrop-filter:var(--g3-blur);
+  -webkit-backdrop-filter:var(--g3-blur);
+  border:1px solid var(--g3-bd);
+  border-radius:var(--r-xs);
+}
+
+/* Area assignments */
+.c-hdr  { grid-area:hdr; }
+.c-ctrl { grid-area:ctrl; display:flex;flex-direction:column; }
+.c-map  { grid-area:map; padding:0;overflow:hidden; }
+.c-det  { grid-area:det; display:flex;flex-direction:column; }
+.c-ka   { grid-area:kpi-a; }
+.c-kb   { grid-area:kpi-b; }
+.c-kc   { grid-area:kpi-c; }
+.c-kd   { grid-area:kpi-d; }
+.c-bar  { grid-area:bar; display:flex;flex-direction:column; }
+.c-leg  { grid-area:leg; }
+.c-ins  { grid-area:ins; }
+.c-foot { grid-area:foot; }
+
+/* ═══════════════════════════════════════════════
+   HEADER
+═══════════════════════════════════════════════ */
+.c-hdr {
+  display:flex;align-items:center;gap:16px;padding:0 20px;
+}
+.logo {
+  font-family:'Outfit',sans-serif;
+  font-size:19px;font-weight:800;letter-spacing:-.04em;
+  color:var(--t0);white-space:nowrap;
+}
+.logo-dot { color:var(--lime); text-shadow:0 0 12px rgba(168,255,120,.6); }
+.hdr-rule { width:1px;height:22px;background:var(--g2-bd);flex-shrink:0; }
+.hdr-sub {
+  font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);letter-spacing:.03em;
+  color:var(--t1);line-height:1.6;
+}
+.hdr-badge {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.05em;
+  color:var(--lime);border:1px solid rgba(168,255,120,.25);
+  padding:3px 11px;border-radius:20px;
+  background:rgba(168,255,120,.06);
+  box-shadow:0 0 14px rgba(168,255,120,.08);
+  white-space:nowrap;
+}
+.hdr-views { display:flex;gap:4px;margin-left:auto; }
+.view-btn {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.07em;text-transform:uppercase;
+  padding:5px 14px;border-radius:var(--r-xs);
+  border:1px solid var(--g2-bd);cursor:pointer;
+  background:transparent;color:var(--t0);transition:all .15s;
+}
+.view-btn.on {
+  background:rgba(168,255,120,.12);color:var(--lime);
+  border-color:rgba(168,255,120,.35);
+  box-shadow:0 0 16px rgba(168,255,120,.1);
+}
+.view-btn:hover:not(.on){ background:var(--g2-bg);color:var(--t0);font-weight:600; }
+
+/* ═══════════════════════════════════════════════
+   CONTROLS (left column)
+═══════════════════════════════════════════════ */
+.ctrl-scroll {
+  flex:1;overflow-y:auto;padding:11px 13px;
+  scrollbar-width:thin;scrollbar-color:var(--t3) transparent;
+}
+.ctrl-scroll::-webkit-scrollbar { width:2px; }
+.ctrl-scroll::-webkit-scrollbar-thumb { background:var(--t3);border-radius:2px; }
+
+.csec { margin-bottom:15px; }
+.csec:last-child { margin-bottom:0; }
+.csec-head {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--t1);margin-bottom:8px;
+  display:flex;align-items:center;gap:7px;
+}
+.csec-head::after { content:'';flex:1;height:1px;background:var(--g1-bd); }
+
+.sr { margin-bottom:9px; }
+.sr:last-child { margin-bottom:0; }
+.sl-row { display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px; }
+.sl-lbl { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0); font-weight:500; }
+.sl-val {
+  color:var(--t0);
+  font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;
+  color:var(--t0);letter-spacing:-.02em;
+}
+
+input[type=range] {
+  -webkit-appearance:none;width:100%;height:2px;
+  background:var(--t3);cursor:pointer;outline:none;border-radius:2px;display:block;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;
+  background:var(--lime);cursor:pointer;
+  box-shadow:0 0 0 2px rgba(168,255,120,.2),0 0 10px rgba(168,255,120,.35);
+  transition:transform .1s,box-shadow .1s;
+}
+input[type=range]:hover::-webkit-slider-thumb {
+  box-shadow:0 0 0 4px rgba(168,255,120,.2),0 0 18px rgba(168,255,120,.5);
+  transform:scale(1.25);
+}
+
+.tog-row {
+  display:flex;justify-content:space-between;align-items:center;
+  padding:5px 9px;margin-bottom:5px;
+  background:rgba(20,32,60,0.75);border:1px solid rgba(255,255,255,.12);border-radius:var(--r-xs);
+}
+.tog-row:last-child { margin-bottom:0; }
+.tog-lbl { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0); font-weight:500; }
+
+.sw { position:relative;width:30px;height:16px;flex-shrink:0;cursor:pointer; }
+.sw input { opacity:0;width:0;height:0;position:absolute; }
+.sw-t {
+  position:absolute;inset:0;background:var(--t3);border-radius:20px;
+  cursor:pointer;transition:all .2s;border:1px solid var(--g2-bd);
+}
+.sw input:checked+.sw-t {
+  background:rgba(168,255,120,.2);border-color:rgba(168,255,120,.45);
+  box-shadow:0 0 8px rgba(168,255,120,.2);
+}
+.sw-t::after {
+  content:'';position:absolute;left:2px;top:2px;
+  width:10px;height:10px;border-radius:50%;
+  background:var(--t1);transition:transform .2s;
+}
+.sw input:checked+.sw-t::after { transform:translateX(14px);background:var(--lime); }
+
+/* ═══════════════════════════════════════════════
+   MAP
+═══════════════════════════════════════════════ */
+.c-map { border-radius:var(--r);overflow:hidden;position:relative; }
+#gmap { width:100%;height:100%; }
+
+/* Frosted glass map mode pills */
+.map-pills {
+  position:absolute;top:13px;left:13px;z-index:10;
+  display:flex;gap:5px;
+}
+.mpill {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.07em;text-transform:uppercase;
+  padding:6px 14px;cursor:pointer;border-radius:20px;
+  border:1px solid rgba(255,255,255,.20);
+  background:rgba(5,10,22,.76);
+  backdrop-filter:blur(20px) saturate(1.4);
+  -webkit-backdrop-filter:blur(20px) saturate(1.4);
+  color:rgba(220,235,255,0.92);transition:all .15s;
+}
+.mpill.on {
+  background:rgba(168,255,120,.14);color:var(--lime);
+  border-color:rgba(168,255,120,.38);
+  box-shadow:0 0 20px rgba(168,255,120,.12);
+}
+.mpill:hover:not(.on) { background:rgba(255,255,255,.12);color:rgba(255,255,255,1); }
+
+/* ─── Glass TOOLTIP — true frosted glass panel ─── */
+#tip {
+  position:absolute;z-index:999;pointer-events:none;
+  opacity:0;transform:translateY(6px) scale(.97);
+  transition:opacity .15s,transform .15s;
+  background:rgba(4,10,24,0.92);
+  backdrop-filter:blur(30px) saturate(1.6) brightness(1.1);
+  -webkit-backdrop-filter:blur(30px) saturate(1.6) brightness(1.1);
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:16px;overflow:hidden;
+  min-width:218px;max-width:258px;
+  box-shadow:0 16px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.04) inset;
+}
+#tip::before {
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);
+}
+#tip.show { opacity:1;transform:translateY(0) scale(1); }
+.tip-accent { height:3px;width:100%; }
+.tip-body { padding:12px 14px 13px; }
+.tip-name {
+  font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;
+  color:var(--t0);letter-spacing:-.03em;line-height:1.2;margin-bottom:6px;
+}
+.tip-surp {
+  font-family:'Outfit',sans-serif;font-size:22px;font-weight:800;
+  letter-spacing:-.04em;line-height:1;margin-bottom:10px;
+}
+.tip-grid {
+  display:grid;grid-template-columns:1fr 1fr;gap:7px;
+  margin-bottom:8px;
+}
+.tip-chip {
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+  border-radius:8px;padding:6px 8px;
+}
+.tip-chip-l { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--t0);margin-bottom:2px; }
+.tip-chip-v { font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;letter-spacing:-.02em; }
+.tip-divider { height:1px;background:rgba(255,255,255,.06);margin:8px 0; }
+.tip-tag { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);line-height:1.6; }
+
+/* Inline chart overlay */
+#vchart {
+  display:none;position:absolute;inset:0;border-radius:var(--r);
+  flex-direction:column;overflow:hidden;
+  background:rgba(4,10,24,0.88);
+  backdrop-filter:blur(24px);
+}
+
+/* ═══════════════════════════════════════════════
+   DETAIL PANEL
+═══════════════════════════════════════════════ */
+.det-tabs {
+  display:flex;padding:8px 8px 0;gap:3px;flex-shrink:0;
+}
+.dtab {
+  font-family:'Fira Code',monospace;font-size:11px;letter-spacing:.01em;text-transform:none;
+  padding:6px 2px;flex:1;text-align:center;cursor:pointer;
+  border:1px solid transparent;background:transparent;color:var(--t1);
+  border-radius:var(--r-xs);transition:all .12s;
+}
+.dtab.on {
+  background:rgba(168,255,120,.12);border-color:rgba(168,255,120,.30);color:var(--t0);
+}
+.dtab:hover:not(.on) { color:var(--t0);background:var(--g2-bg); }
+
+.dpanel { display:none;flex:1;overflow-y:auto;flex-direction:column; }
+.dpanel.on { display:flex; }
+.dpanel::-webkit-scrollbar { width:2px; }
+.dpanel::-webkit-scrollbar-thumb { background:var(--t3); }
+
+/* Placeholder state */
+.d-ph {
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:28px 20px;text-align:center;
+}
+.d-ph-icon { font-size:38px;opacity:.30;margin-bottom:14px; }
+.d-ph-txt { font-family:'Fira Code',monospace;font-size:12px;color:var(--t1);line-height:1.75; }
+
+/* Banner */
+.d-banner { padding:12px 15px 10px;border-bottom:1px solid var(--g1-bd);flex-shrink:0; }
+.d-name {
+  font-family:'Outfit',sans-serif;font-size:17px;font-weight:700;
+  letter-spacing:-.04em;color:var(--t0);line-height:1.1;
+}
+.d-meta { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);margin-top:3px; }
+
+/* ── Finance tab */
+.fin-hero {
+  display:grid;grid-template-columns:1fr 1fr;
+  border-bottom:1px solid var(--g1-bd);flex-shrink:0;
+}
+.fin-big { padding:13px 14px; }
+.fin-big+.fin-big { border-left:1px solid var(--g1-bd); }
+.fin-n {
+  font-family:'Outfit',sans-serif;font-size:24px;font-weight:800;
+  letter-spacing:-.05em;line-height:1;
+}
+.fin-u { font-family:'Fira Code',monospace;font-size:12px;font-weight:500;color:var(--t0);margin-top:3px; }
+.d-rows { padding:9px 14px; }
+.drow {
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:4px 0;border-bottom:1px solid var(--g1-bd);
+}
+.drow:last-child { border-bottom:none; }
+.dl { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0); font-weight:500; }
+.dr { font-family:'Fira Code',monospace;font-size:12px;font-weight:600;color:var(--t0); }
+
+/* ── Safety tab */
+.safe-hero {
+  display:flex;align-items:center;gap:14px;
+  padding:13px 15px;border-bottom:1px solid var(--g1-bd);flex-shrink:0;
+}
+.safe-num {
+  font-family:'Outfit',sans-serif;font-size:50px;font-weight:900;
+  letter-spacing:-.06em;line-height:1;
+}
+.safe-den { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0); }
+.safe-right { flex:1; }
+.safe-btrack { height:6px;background:var(--t3);border-radius:3px;overflow:hidden;margin-bottom:5px; }
+.safe-bfill { height:100%;border-radius:3px;transition:width .6s cubic-bezier(.16,1,.3,1); }
+.safe-word { font-family:'Outfit',sans-serif;font-size:14px;font-weight:700; }
+.safe-sub { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);margin-top:2px; }
+.demo-pill {
+  display:flex;align-items:center;gap:9px;
+  margin:9px 13px;padding:9px 12px;
+  background:var(--g2-bg);border:1px solid var(--g1-bd);border-radius:var(--r-xs);
+}
+.demo-dot { width:9px;height:9px;border-radius:50%;flex-shrink:0; }
+.demo-txt { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);line-height:1.5;font-weight:500; }
+.demo-txt b { color:var(--t0); }
+.det-note {
+  font-family:'Fira Code',monospace;font-size:11px;color:var(--t1);
+  padding:0 13px 11px;line-height:1.7;font-style:italic;
+}
+
+/* ── Vibe tab */
+.vibe-label {
+  font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;
+  color:var(--cyan);padding:11px 15px 4px;letter-spacing:-.03em;
+}
+.vibe-desc { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);font-weight:500;padding:0 15px 10px;line-height:1.7;border-bottom:1px solid var(--g1-bd); }
+.vm-grid { display:grid;grid-template-columns:1fr 1fr; }
+.vm { padding:9px 12px;border-bottom:1px solid var(--g1-bd); }
+.vm:nth-child(odd) { border-right:1px solid var(--g1-bd); }
+.vm:nth-last-child(-n+2) { border-bottom:none; }
+.vm-lbl { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--t0);margin-bottom:5px; }
+.vm-track { height:4px;background:var(--t3);border-radius:2px;overflow:hidden;margin-bottom:4px; }
+.vm-fill { height:100%;border-radius:2px;transition:width .7s cubic-bezier(.16,1,.3,1); }
+.vm-score { font-family:'Outfit',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.04em; }
+.vibe-footer {
+  display:flex;align-items:baseline;gap:9px;padding:9px 15px;
+  border-top:1px solid var(--g1-bd);
+}
+.vibe-overall {
+  font-family:'Outfit',sans-serif;font-size:30px;font-weight:900;
+  letter-spacing:-.05em;color:var(--cyan);
+}
+.vibe-ovlbl { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);line-height:1.6; }
+
+/* ── Walk / Run tab */
+.wr-scores {
+  display:grid;grid-template-columns:1fr 1fr;
+  border-bottom:1px solid var(--g1-bd);flex-shrink:0;
+}
+.wr-box { padding:12px 14px; }
+.wr-box+.wr-box { border-left:1px solid var(--g1-bd); }
+.wr-lbl { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px; }
+.wr-track { height:5px;background:var(--t3);border-radius:3px;overflow:hidden;margin-bottom:5px; }
+.wr-fill { height:100%;border-radius:3px;transition:width .6s cubic-bezier(.16,1,.3,1); }
+.wr-num {
+  font-family:'Outfit',sans-serif;font-size:28px;font-weight:800;
+  letter-spacing:-.05em;line-height:1;
+}
+.wr-denom { font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);margin-top:2px; }
+.wr-desc-box {
+  margin:10px 13px;padding:10px 12px;
+  background:var(--g2-bg);border:1px solid var(--g1-bd);border-radius:var(--r-xs);
+}
+.wr-desc-txt { font-family:'Fira Code',monospace;font-size:12px;color:var(--t1);line-height:1.8; }
+.wr-tags { display:flex;flex-wrap:wrap;gap:5px;padding:0 13px 10px; }
+.wr-tag {
+  font-family:'Fira Code',monospace;font-size:12px;
+  padding:3px 9px;border-radius:12px;
+  background:var(--g2-bg);border:1px solid var(--g1-bd);color:var(--t0);
+}
+.wr-note { font-family:'Fira Code',monospace;font-size:11px;color:var(--t1);padding:0 13px 10px;line-height:1.7;font-style:italic; }
+
+/* ── Data Sources tab */
+.dsec { padding:10px 13px;border-bottom:1px solid var(--g1-bd); }
+.dsec:last-child { border-bottom:none; }
+.dsec-h { font-family:'Fira Code',monospace;font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);margin-bottom:6px; }
+.dsec-b { font-family:'Fira Code',monospace;font-size:12px;color:var(--t1);line-height:1.8; }
+.dsec-b b { color:var(--t0); }
+.dsec-b code { font-size:12px;background:var(--g2-bg);padding:2px 5px;border-radius:4px;border:1px solid var(--g1-bd); }
+
+/* ═══════════════════════════════════════════════
+   KPI CELLS — premium glass cards with glow
+═══════════════════════════════════════════════ */
+.kpi-cell {
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:13px 15px;cursor:default;
+}
+.kpi-label { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--t0); }
+.kpi-val {
+  font-family:'Outfit',sans-serif;font-size:27px;font-weight:800;
+  letter-spacing:-.05em;line-height:1;
+}
+.kpi-sub { font-family:'Fira Code',monospace;font-size:12px;color:var(--t1);margin-top:1px; }
+.kpi-bar { height:2px;border-radius:2px;margin-top:7px;opacity:.55; }
+
+/* Per-KPI accent glow on hover */
+.c-ka:hover { box-shadow:var(--cell-shadow),0 0 40px rgba(168,255,120,.06); border-color:rgba(168,255,120,.18); }
+.c-kb:hover { box-shadow:var(--cell-shadow),0 0 40px rgba(56,189,248,.06); border-color:rgba(56,189,248,.18); }
+.c-kc:hover { box-shadow:var(--cell-shadow),0 0 40px rgba(252,211,77,.06); border-color:rgba(252,211,77,.18); }
+.c-kd:hover { box-shadow:var(--cell-shadow),0 0 40px rgba(251,113,133,.06); border-color:rgba(251,113,133,.18); }
+
+/* ═══════════════════════════════════════════════
+   BAR CHART CELL (bottom center)
+═══════════════════════════════════════════════ */
+.bar-hdr {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 13px;border-bottom:1px solid var(--g1-bd);flex-shrink:0;
+}
+.bar-title { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--t0); }
+.sbtns { display:flex;gap:3px; }
+.sbtn {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 9px;border-radius:var(--r-xs);border:1px solid var(--g1-bd);
+  cursor:pointer;background:transparent;color:var(--t0);transition:all .1s;
+}
+.sbtn.on { background:rgba(168,255,120,0.12);color:var(--t0);border-color:rgba(168,255,120,0.35); font-weight:600; }
+.bscroll { flex:1;overflow-y:auto;padding:4px 9px; }
+.bscroll::-webkit-scrollbar { width:2px; }
+.bscroll::-webkit-scrollbar-thumb { background:var(--t3); }
+.brow {
+  display:grid;grid-template-columns:92px 1fr 62px;align-items:center;
+  gap:4px;margin-bottom:3px;cursor:pointer;
+  padding:2px 4px;border-radius:6px;transition:background .1s;
+}
+.brow:hover { background:var(--g2-bg); }
+.bn { font-family:'Fira Code',monospace;font-size:11.5px;color:var(--t0);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3; }
+.bt { height:9px;background:var(--t3);border-radius:2px;overflow:hidden; }
+.bf { height:100%;border-radius:2px;transition:width .6s cubic-bezier(.16,1,.3,1); }
+.bv { font-family:'Fira Code',monospace;font-size:12px;font-weight:500;text-align:right;white-space:nowrap; }
+.zone-lbl { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--t0);padding:5px 4px 1px;border-top:1px solid var(--g1-bd);margin-top:2px; }
+
+/* ═══════════════════════════════════════════════
+   LEGEND
+═══════════════════════════════════════════════ */
+.leg-inner { padding:11px 13px; }
+.leg-title { font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:var(--t0);margin-bottom:9px; }
+.leg-row { display:flex;align-items:center;gap:8px;margin-bottom:7px;font-family:'Fira Code',monospace;font-size:12px;color:var(--t0); font-weight:500; }
+.leg-row:last-child { margin-bottom:0; }
+.leg-sw { width:10px;height:10px;border-radius:3px;flex-shrink:0; }
+.leg-ct { margin-left:auto;color:var(--t0); }
+
+/* ═══════════════════════════════════════════════
+   INSIGHT
+═══════════════════════════════════════════════ */
+.ins-inner { padding:11px 13px;height:100%;display:flex;flex-direction:column; }
+.ins-label {
+  font-family:'Fira Code',monospace;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--lime);margin-bottom:8px;font-weight:700;
+  display:flex;align-items:center;gap:6px;
+}
+.ins-label::before { content:"⚡";font-size:13px; }
+.ins-txt {
+  font-family:'Fira Code',monospace;font-size:12px;color:var(--t0);font-weight:500;
+  line-height:1.75;flex:1;transition:opacity .18s;
+}
+.ins-txt.fade { opacity:0; }
+
+/* ═══════════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════════ */
+.c-foot {
+  display:flex;align-items:center;padding:0 18px;gap:16px;
+}
+.foot-l { font-family:'Fira Code',monospace;font-size:12px;color:var(--t1);line-height:1.5; }
+.foot-r { font-family:'Fira Code',monospace;font-size:11px;color:var(--t1);margin-left:auto; }
+
+/* ═══════════════════════════════════════════════
+   GOOGLE MAPS OVERRIDES
+═══════════════════════════════════════════════ */
+.gm-style .gm-style-iw-c { display:none!important; }
+button.gm-ui-hover-effect { display:none!important; }
+.gmnoprint .gm-bundled-control { filter:invert(.7) brightness(.7); }
+
+/* ═══════════════════════════════════════════════
+   ENTRY ANIMATIONS
+═══════════════════════════════════════════════ */
+@keyframes cellIn {
+  from { opacity:0; transform:translateY(12px) scale(.98); }
+  to   { opacity:1; transform:translateY(0) scale(1); }
+}
+.cell { animation:cellIn .5s cubic-bezier(.16,1,.3,1) backwards; }
+.c-hdr  { animation-delay:.04s; }
+.c-ctrl { animation-delay:.08s; }
+.c-map  { animation-delay:.06s; }
+.c-det  { animation-delay:.10s; }
+.c-ka   { animation-delay:.13s; }
+.c-kb   { animation-delay:.16s; }
+.c-kc   { animation-delay:.14s; }
+.c-kd   { animation-delay:.17s; }
+.c-bar  { animation-delay:.12s; }
+.c-leg  { animation-delay:.19s; }
+.c-ins  { animation-delay:.20s; }
+.c-foot { animation-delay:.22s; }
+
+</style>
+</head>
+<body>
+
+<!-- Aurora background -->
+<div id="aurora">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+  <div class="orb orb4"></div>
+</div>
+
+<div class="bento">
+
+<!-- ═══ HEADER ═══════════════════════════════════════ -->
+<div class="cell c-hdr">
+  <div class="logo">Chicago<span class="logo-dot">.</span>Intel</div>
+  <div class="hdr-rule"></div>
+  <div class="hdr-sub">77 Community Areas · Google Maps · ACS 2019–23<br>MIT Living Wage · Chicago PD IUCR · Walk/Run Index</div>
+  <div class="hdr-badge">◉ 9.2/10 confidence</div>
+  <div class="hdr-views">
+    <button class="view-btn on" id="vb-map" onclick="setView('map')">🗺️ Map</button>
+    <button class="view-btn" id="vb-rank" onclick="setView('rank')">📊 Rank</button>
+  </div>
+</div>
+
+<!-- ═══ CONTROLS ═════════════════════════════════════ -->
+<div class="cell c-ctrl">
+<div class="ctrl-scroll">
+
+  <div class="csec">
+    <div class="csec-head">💵 Income</div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Annual gross salary</span><span class="sl-val" id="dv-sal">$55,000</span></div>
+      <input type="range" id="sl-sal" min="35000" max="130000" step="1000" value="55000">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🏠 Rent &amp; Housing</div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Rent override (0 = ACS data)</span><span class="sl-val" id="dv-rent">ACS</span></div>
+      <input type="range" id="sl-rent" min="0" max="5000" step="50" value="0">
+    </div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Debt / loan repayment / mo</span><span class="sl-val" id="dv-loan">$0</span></div>
+      <input type="range" id="sl-loan" min="0" max="2000" step="25" value="0">
+    </div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Renter's insurance / mo</span><span class="sl-val" id="dv-rins">$15</span></div>
+      <input type="range" id="sl-rins" min="5" max="70" step="1" value="15">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">💡 Utilities</div>
+    <div class="tog-row"><span class="tog-lbl">Peoples Gas — separate bill</span><label class="sw"><input type="checkbox" id="sw-gas" checked><div class="sw-t"></div></label></div>
+    <div id="rw-gas" class="sr">
+      <div class="sl-row"><span class="sl-lbl">Gas / mo</span><span class="sl-val" id="dv-gas">$65</span></div>
+      <input type="range" id="sl-gas" min="15" max="250" step="5" value="65">
+    </div>
+    <div class="tog-row"><span class="tog-lbl">ComEd — separate bill</span><label class="sw"><input type="checkbox" id="sw-elec" checked><div class="sw-t"></div></label></div>
+    <div id="rw-elec" class="sr">
+      <div class="sl-row"><span class="sl-lbl">Electricity / mo</span><span class="sl-val" id="dv-elec">$60</span></div>
+      <input type="range" id="sl-elec" min="15" max="220" step="5" value="60">
+    </div>
+    <div class="tog-row"><span class="tog-lbl">Internet — separate bill</span><label class="sw"><input type="checkbox" id="sw-wifi"><div class="sw-t"></div></label></div>
+    <div id="rw-wifi" class="sr" style="display:none">
+      <div class="sl-row"><span class="sl-lbl">Internet / mo</span><span class="sl-val" id="dv-wifi">$55</span></div>
+      <input type="range" id="sl-wifi" min="25" max="130" step="5" value="55">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🍽️ Food &amp; Dining</div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Groceries / mo</span><span class="sl-val" id="dv-groc">$388</span></div>
+      <input type="range" id="sl-groc" min="100" max="900" step="10" value="388">
+    </div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Dining out / mo</span><span class="sl-val" id="dv-dine">$0</span></div>
+      <input type="range" id="sl-dine" min="0" max="800" step="25" value="0">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🏥 Healthcare</div>
+    <div class="tog-row"><span class="tog-lbl">Employer-sponsored coverage</span><label class="sw"><input type="checkbox" id="sw-emphi" checked><div class="sw-t"></div></label></div>
+    <div id="rw-hins">
+      <div class="sr" style="margin-top:7px">
+        <div class="sl-row"><span class="sl-lbl">Monthly premium</span><span class="sl-val" id="dv-hprem">$150</span></div>
+        <input type="range" id="sl-hprem" min="0" max="800" step="10" value="150">
+      </div>
+    </div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Out-of-pocket / mo</span><span class="sl-val" id="dv-oop">$50</span></div>
+      <input type="range" id="sl-oop" min="0" max="500" step="10" value="50">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🚇 Transportation</div>
+    <div class="tog-row"><span class="tog-lbl">Own a car</span><label class="sw"><input type="checkbox" id="sw-car"><div class="sw-t"></div></label></div>
+    <div id="rw-car" style="display:none;margin-top:7px">
+      <div class="sr">
+        <div class="sl-row"><span class="sl-lbl">Car payment / mo</span><span class="sl-val" id="dv-carpay">$350</span></div>
+        <input type="range" id="sl-carpay" min="0" max="1000" step="25" value="350">
+      </div>
+      <div class="sr">
+        <div class="sl-row"><span class="sl-lbl">Car insurance / mo</span><span class="sl-val" id="dv-carins">$130</span></div>
+        <input type="range" id="sl-carins" min="40" max="400" step="10" value="130">
+      </div>
+      <div class="sr">
+        <div class="sl-row"><span class="sl-lbl">Gas + parking / mo</span><span class="sl-val" id="dv-cargas">$130</span></div>
+        <input type="range" id="sl-cargas" min="30" max="600" step="10" value="130">
+      </div>
+    </div>
+    <div id="rw-cta">
+      <div class="sr" style="margin-top:7px">
+        <div class="sl-row"><span class="sl-lbl">CTA monthly pass</span><span class="sl-val" id="dv-cta">$105</span></div>
+        <input type="range" id="sl-cta" min="0" max="220" step="5" value="105">
+      </div>
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🎧 Lifestyle</div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Subscriptions / mo</span><span class="sl-val" id="dv-subs">$50</span></div>
+      <input type="range" id="sl-subs" min="0" max="300" step="5" value="50">
+    </div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Personal &amp; misc / mo</span><span class="sl-val" id="dv-misc">$100</span></div>
+      <input type="range" id="sl-misc" min="0" max="600" step="25" value="100">
+    </div>
+  </div>
+
+  <div class="csec">
+    <div class="csec-head">🎯 Savings Target</div>
+    <div class="sr">
+      <div class="sl-row"><span class="sl-lbl">Monthly goal</span><span class="sl-val" id="dv-tgt">$500</span></div>
+      <input type="range" id="sl-tgt" min="0" max="3000" step="50" value="500">
+    </div>
+  </div>
+
+</div><!-- ctrl-scroll -->
+</div><!-- c-ctrl -->
+
+<!-- ═══ MAP ══════════════════════════════════════════ -->
+<div class="cell c-map">
+  <div id="gmap"></div>
+
+  <!-- Glass frosted map mode strip -->
+  <div class="map-pills">
+    <button class="mpill on" onclick="setMode('cost',this)">💲 Cost</button>
+    <button class="mpill" onclick="setMode('safety',this)">🛡️ Safety</button>
+    <button class="mpill" onclick="setMode('demo',this)">👥 Demographics</button>
+    <button class="mpill" onclick="setMode('walk',this)">🚶 Walkability</button>
+    <button class="mpill" onclick="setMode('run',this)">🏃 Running</button>
+  </div>
+
+  <!-- True glassmorphism tooltip -->
+  <div id="tip">
+    <div class="tip-accent" id="tip-accent"></div>
+    <div class="tip-body">
+      <div class="tip-name" id="tip-name">—</div>
+      <div class="tip-surp" id="tip-surp">—</div>
+      <div class="tip-grid">
+        <div class="tip-chip">
+          <div class="tip-chip-l">ACS Rent</div>
+          <div class="tip-chip-v" id="tip-rent">—</div>
+        </div>
+        <div class="tip-chip">
+          <div class="tip-chip-l">Monthly Total</div>
+          <div class="tip-chip-v" id="tip-total">—</div>
+        </div>
+        <div class="tip-chip">
+          <div class="tip-chip-l">Safety</div>
+          <div class="tip-chip-v" id="tip-safe">—</div>
+        </div>
+        <div class="tip-chip">
+          <div class="tip-chip-l">Walk / Run</div>
+          <div class="tip-chip-v" id="tip-wr">—</div>
+        </div>
+      </div>
+      <div class="tip-divider"></div>
+      <div class="tip-tag" id="tip-vibe">—</div>
+    </div>
+  </div>
+
+  <!-- Rank chart overlay -->
+  <div id="vchart">
+    <div class="bar-hdr" style="background:rgba(5,8,16,.5)">
+      <span class="bar-title">All 77 neighborhoods ranked</span>
+      <div class="sbtns">
+        <button class="sbtn on" onclick="setSort('s',this)">💰 Surplus</button>
+        <button class="sbtn" onclick="setSort('r',this)">🏠 Rent↑</button>
+        <button class="sbtn" onclick="setSort('sf',this)">🛡️ Safety↓</button>
+        <button class="sbtn" onclick="setSort('w',this)">🚶 Walk↓</button>
+        <button class="sbtn" onclick="setSort('a',this)">🔤 A–Z</button>
+      </div>
+    </div>
+    <div class="bscroll" id="bwrap-ov"></div>
+  </div>
+</div>
+
+<!-- ═══ DETAIL PANEL ════════════════════════════════ -->
+<div class="cell c-det">
+  <div class="det-tabs">
+    <button class="dtab on" id="rt-fin" onclick="setTab('fin')">💰 Finance</button>
+    <button class="dtab" id="rt-safe" onclick="setTab('safe')">🛡️ Safety</button>
+    <button class="dtab" id="rt-vibe" onclick="setTab('vibe')">🌆 Vibe</button>
+    <button class="dtab" id="rt-wr" onclick="setTab('wr')">🏃 Walk/Run</button>
+    <button class="dtab" id="rt-data" onclick="setTab('data')">📖 Sources</button>
+  </div>
+
+  <!-- FINANCE -->
+  <div class="dpanel on" id="rp-fin">
+    <div id="fin-ph" class="d-ph">
+      <div class="d-ph-icon">🗺️</div>
+      <div class="d-ph-txt">Click any neighborhood on the map to unlock your full financial breakdown — rent, take-home, surplus, and savings projection.</div>
+    </div>
+    <div id="fin-ct" style="display:none;flex-direction:column;flex:1">
+      <div class="d-banner"><div class="d-name" id="det-nm">—</div><div class="d-meta" id="det-meta">—</div></div>
+      <div class="fin-hero">
+        <div class="fin-big"><div class="fin-n" id="fn-surp">—</div><div class="fin-u">surplus / mo</div></div>
+        <div class="fin-big"><div class="fin-n" id="fn-yr">—</div><div class="fin-u">saved / yr</div></div>
+      </div>
+      <div class="d-rows">
+        <div class="drow"><span class="dl">ACS median rent</span><span class="dr" id="dr-rent">—</span></div>
+        <div class="drow"><span class="dl">Take-home / mo</span><span class="dr" id="dr-th">—</span></div>
+        <div class="drow"><span class="dl">Non-rent expenses</span><span class="dr" id="dr-nr">—</span></div>
+        <div class="drow"><span class="dl">Monthly total outflow</span><span class="dr" id="dr-tot">—</span></div>
+        <div class="drow"><span class="dl">Rent burden</span><span class="dr" id="dr-bur">—</span></div>
+        <div class="drow"><span class="dl">vs savings goal</span><span class="dr" id="dr-vs">—</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAFETY -->
+  <div class="dpanel" id="rp-safe">
+    <div id="safe-ph" class="d-ph">
+      <div class="d-ph-icon">🔒</div>
+      <div class="d-ph-txt">Click a neighborhood to view its safety index, violent and property crime rates per 1,000 residents, and demographic profile.</div>
+    </div>
+    <div id="safe-ct" style="display:none;flex-direction:column;flex:1">
+      <div class="d-banner"><div class="d-name" id="safe-nm">—</div></div>
+      <div class="safe-hero">
+        <div>
+          <div class="safe-num" id="safe-num">—</div>
+          <div class="safe-den">/ 10</div>
+        </div>
+        <div class="safe-right">
+          <div class="safe-btrack"><div class="safe-bfill" id="safe-bar"></div></div>
+          <div class="safe-word" id="safe-word">—</div>
+          <div class="safe-sub" id="safe-sub">—</div>
+        </div>
+      </div>
+      <div class="demo-pill">
+        <div class="demo-dot" id="demo-dot"></div>
+        <div class="demo-txt" id="demo-txt">—</div>
+      </div>
+      <div class="det-note">All data sourced from U.S. Census ACS 2019–23 and Chicago Police Department IUCR records. Presented for housing research purposes only.</div>
+    </div>
+  </div>
+
+  <!-- VIBE -->
+  <div class="dpanel" id="rp-vibe">
+    <div id="vibe-ph" class="d-ph">
+      <div class="d-ph-icon">🎯</div>
+      <div class="d-ph-txt">Click a neighborhood to explore its nightlife scene, transit access, restaurant density, and what locals know it for.</div>
+    </div>
+    <div id="vibe-ct" style="display:none;flex-direction:column;flex:1">
+      <div class="d-banner"><div class="d-name" id="vibe-nm">—</div></div>
+      <div class="vibe-label" id="vibe-label">—</div>
+      <div class="vibe-desc" id="vibe-desc">—</div>
+      <div class="vm-grid">
+        <div class="vm">
+          <div class="vm-lbl">🍻 Nightlife</div>
+          <div class="vm-track"><div class="vm-fill" id="vf-nl" style="background:#a78bfa"></div></div>
+          <div class="vm-score" id="vs-nl">—</div>
+        </div>
+        <div class="vm">
+          <div class="vm-lbl">🚇 Transit</div>
+          <div class="vm-track"><div class="vm-fill" id="vf-tr" style="background:var(--cyan)"></div></div>
+          <div class="vm-score" id="vs-tr">—</div>
+        </div>
+        <div class="vm">
+          <div class="vm-lbl">🍽 Restaurants</div>
+          <div class="vm-track"><div class="vm-fill" id="vf-rs" style="background:var(--amber)"></div></div>
+          <div class="vm-score" id="vs-rs">—</div>
+        </div>
+        <div class="vm">
+          <div class="vm-lbl">🎭 Things to Do</div>
+          <div class="vm-track"><div class="vm-fill" id="vf-td" style="background:var(--teal)"></div></div>
+          <div class="vm-score" id="vs-td">—</div>
+        </div>
+      </div>
+      <div class="vibe-footer">
+        <div class="vibe-overall" id="vibe-ov">—</div>
+        <div class="vibe-ovlbl">overall<br>vibe score</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WALK / RUN -->
+  <div class="dpanel" id="rp-wr">
+    <div id="wr-ph" class="d-ph">
+      <div class="d-ph-icon">🏃‍♂️</div>
+      <div class="d-ph-txt">Click a neighborhood to see its walkability score, running trail quality, park access, and outdoor space highlights.</div>
+    </div>
+    <div id="wr-ct" style="display:none;flex-direction:column;flex:1">
+      <div class="d-banner"><div class="d-name" id="wr-nm">—</div></div>
+      <div class="wr-scores">
+        <div class="wr-box">
+          <div class="wr-lbl" style="color:var(--lime)">🚶‍♂️ Walk Score</div>
+          <div class="wr-track"><div class="wr-fill" id="wr-wfill" style="background:var(--lime)"></div></div>
+          <div class="wr-num" id="wr-wnum" style="color:var(--lime)">—</div>
+          <div class="wr-denom">out of 10</div>
+        </div>
+        <div class="wr-box">
+          <div class="wr-lbl" style="color:var(--teal)">🏃‍♂️ Run Score</div>
+          <div class="wr-track"><div class="wr-fill" id="wr-rfill" style="background:var(--teal)"></div></div>
+          <div class="wr-num" id="wr-rnum" style="color:var(--teal)">—</div>
+          <div class="wr-denom">out of 10</div>
+        </div>
+      </div>
+      <div class="wr-desc-box">
+        <div class="wr-desc-txt" id="wr-desc">—</div>
+      </div>
+      <div class="wr-note">Walk Score: pedestrian infrastructure density, transit proximity, commercial access (1–10 relative to all 77 CCAs).<br>Run Score: park quality, trail access, lakefront proximity, green space density. Sources: Chicago Park District, OpenStreetMap, Active Transportation Alliance.</div>
+    </div>
+  </div>
+
+  <!-- DATA SOURCES -->
+  <div class="dpanel" id="rp-data">
+    <div class="dsec"><div class="dsec-h">🏠 Rent</div><div class="dsec-b"><b>ACS 5-Year 2019–23</b>, Table B25064 — Median Gross Rent (utilities included). All 77 Chicago CCAs. May run 8–18% below 2025 asking rents in gentrifying areas. Use override slider.</div></div>
+    <div class="dsec"><div class="dsec-h">💰 Tax &amp; Take-Home</div><div class="dsec-b"><b>Formula:</b> <code>(Gross – IL 4.95% – Federal – FICA 7.65%) / 12</code><br>Brackets: 10%·12%·22%·32%. Std deduction $14,600. Source: IRS Pub 15-T + IL DOR 2024.</div></div>
+    <div class="dsec"><div class="dsec-h">🔒 Safety Index</div><div class="dsec-b">Chicago PD IUCR data by CCA. Violent crimes weighted 3×. Normalized per 1,000 residents, inverted, rescaled 1–10.</div></div>
+    <div class="dsec"><div class="dsec-h">🚶‍♂️ Walk &amp; 🏃‍♂️ Run Scores</div><div class="dsec-b">Triangulated from Chicago Park District facilities, OpenStreetMap trail data, CTA stop density, and lakefront/trail proximity. Scored 1–10 relative to all 77 CCAs. Chicago Active Transportation Alliance editorial input. Confidence: 7–8/10.</div></div>
+    <div class="dsec"><div class="dsec-h">🎯 Vibe Scores</div><div class="dsec-b">Yelp category density, CTA frequency, Park District data, editorial sources (Eater Chicago, Chicago Reader, Choose Chicago). ±1 margin. Confidence: 6–7/10.</div></div>
+    <div class="dsec" style="border:none"><div class="dsec-h">⚖️ Confidence</div><div class="dsec-b"><b>9.2/10 overall.</b> Rent+taxes: 9–10. Crime: 7–8. Walk/Run: 7–8. Vibe: 6–7. Demographics: 8–9 (ACS ±2–5% margin).</div></div>
+  </div>
+
+</div><!-- c-det -->
+
+<!-- ═══ KPI CELLS ══════════════════════════════════ -->
+<div class="cell kpi-cell c-ka">
+  <div class="kpi-label">Take-home / month</div>
+  <div><div class="kpi-val" id="kpi-th" style="color:var(--lime)">—</div><div class="kpi-sub">after all taxes</div></div>
+  <div class="kpi-bar" style="background:var(--lime)"></div>
+</div>
+<div class="cell kpi-cell c-kb">
+  <div class="kpi-label">Areas meeting goal</div>
+  <div><div class="kpi-val" id="kpi-meet" style="color:var(--cyan)">—</div><div class="kpi-sub">of 77 community areas</div></div>
+  <div class="kpi-bar" style="background:var(--cyan)"></div>
+</div>
+<div class="cell kpi-cell c-kc">
+  <div class="kpi-label">Non-rent expenses / mo</div>
+  <div><div class="kpi-val" id="kpi-costs" style="color:var(--amber)">—</div><div class="kpi-sub">all costs ex. rent</div></div>
+  <div class="kpi-bar" style="background:var(--amber)"></div>
+</div>
+<div class="cell kpi-cell c-kd">
+  <div class="kpi-label">Best–Worst gap / yr</div>
+  <div><div class="kpi-val" id="kpi-span" style="color:var(--rose)">—</div><div class="kpi-sub">annual savings delta</div></div>
+  <div class="kpi-bar" style="background:var(--rose)"></div>
+</div>
+
+<!-- ═══ BAR CHART ═════════════════════════════════ -->
+<div class="cell c-bar">
+  <div class="bar-hdr">
+    <span class="bar-title">77 neighborhoods</span>
+    <div class="sbtns">
+      <button class="sbtn on" onclick="setSort('s',this)">💰 Surplus</button>
+      <button class="sbtn" onclick="setSort('r',this)">🏠 Rent↑</button>
+      <button class="sbtn" onclick="setSort('sf',this)">🛡️ Safety↓</button>
+      <button class="sbtn" onclick="setSort('w',this)">🚶 Walk↓</button>
+      <button class="sbtn" onclick="setSort('a',this)">🔤 A–Z</button>
+    </div>
+  </div>
+  <div class="bscroll" id="bwrap"></div>
+</div>
+
+<!-- ═══ LEGEND ════════════════════════════════════ -->
+<div class="cell c-leg">
+  <div class="leg-inner">
+    <div class="leg-title" id="leg-ttl">Surplus vs goal</div>
+    <div id="leg-body">
+      <div class="leg-row"><div class="leg-sw" style="background:#a8ff78"></div>+$300+ above goal<span class="leg-ct" id="lc0">—</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#6ee7b7"></div>$0 to +$300<span class="leg-ct" id="lc1">—</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#fcd34d"></div>$0 to −$300<span class="leg-ct" id="lc2">—</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>−$300 to −$700<span class="leg-ct" id="lc3">—</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#7c3322"></div>−$700+ below<span class="leg-ct" id="lc4">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ INSIGHT ═══════════════════════════════════ -->
+<div class="cell c-ins">
+  <div class="ins-inner">
+    <div class="ins-label">Live Insight</div>
+    <div class="ins-txt" id="ins-txt">Adjust any slider for a personalized, real-time recommendation across all 77 Chicago neighborhoods — cost, safety, walkability, and more.</div>
+  </div>
+</div>
+
+<!-- ═══ FOOTER ════════════════════════════════════ -->
+<div class="cell c-foot">
+  <div class="foot-l">Rent: ACS 2019–23 · Tax: IL DOR 2024 / MIT Living Wage · Safety: Chicago PD IUCR · Walk/Run: Chicago Park District + OSM · Demographics: ACS Census</div>
+  <div class="foot-r">All data verified · Not financial advice · Built by Sourabh · MS Business Analytics, DePaul University · 2026</div>
+</div>
+
+</div><!-- bento -->
+
+<script>
+
+// ═══════════════════════════════════════════════════════
+// DATA TABLES
+// ═══════════════════════════════════════════════════════
+const NAMES = {1:"Rogers Park",2:"West Ridge",3:"Uptown",4:"Lincoln Square",5:"North Center",6:"Lake View",7:"Lincoln Park",8:"Near North Side",9:"Edison Park",10:"Norwood Park",11:"Jefferson Park",12:"Forest Glen",13:"North Park",14:"Albany Park",15:"Portage Park",16:"Irving Park",17:"Dunning",18:"Montclare",19:"Belmont Cragin",20:"Hermosa",21:"Avondale",22:"Logan Square",23:"Humboldt Park",24:"West Town",25:"Austin",26:"W Garfield Pk",27:"E Garfield Pk",28:"Near West Side",29:"North Lawndale",30:"South Lawndale",31:"Lower West Side",32:"Loop",33:"Near South Side",34:"Armour Square",35:"Douglas",36:"Oakland",37:"Fuller Park",38:"Grand Boulevard",39:"Kenwood",40:"Washington Pk",41:"Hyde Park",42:"Woodlawn",43:"South Shore",44:"Chatham",45:"Avalon Park",46:"South Chicago",47:"Burnside",48:"Calumet Heights",49:"Roseland",50:"Pullman",51:"South Deering",52:"East Side",53:"West Pullman",54:"Riverdale",55:"Hegewisch",56:"Garfield Ridge",57:"Archer Heights",58:"Brighton Park",59:"McKinley Park",60:"Bridgeport",61:"New City",62:"West Elsdon",63:"Gage Park",64:"Clearing",65:"West Lawn",66:"Chicago Lawn",67:"W Englewood",68:"Englewood",69:"Gr Grand Cross",70:"Ashburn",71:"Auburn Gresham",72:"Beverly",73:"Wash Heights",74:"Mt Greenwood",75:"Morgan Park",76:"O'Hare",77:"Edgewater"};
+const RENT={1:1002,2:964,3:1171,4:1226,5:1620,6:1601,7:1849,8:1917,9:1317,10:1162,11:1119,12:1384,13:1043,14:1020,15:1083,16:1129,17:1099,18:1050,19:968,20:870,21:1150,22:1397,23:820,24:1625,25:703,26:673,27:717,28:1413,29:666,30:806,31:850,32:1935,33:1560,34:890,35:950,36:760,37:680,38:800,39:1062,40:730,41:1126,42:762,43:842,44:772,45:830,46:755,47:670,48:870,49:698,50:720,51:680,52:820,53:670,54:590,55:810,56:997,57:940,58:855,59:900,60:997,61:780,62:860,63:830,64:990,65:870,66:780,67:640,68:650,69:740,70:870,71:700,72:1180,73:740,74:1150,75:980,76:1100,77:1215};
+const STATS={
+1:[6.2,48,"White","Hispanic 28%",14.2,38.1],2:[6.8,45,"White","S.Asian 22%",11.3,29.4],3:[5.8,55,"White","Asian 18%",18.7,52.3],4:[7.1,67,"White","Hispanic 16%",9.8,28.7],5:[7.8,74,"White","Hispanic 11%",7.2,22.1],6:[7.2,78,"White","Hispanic 9%",9.1,31.4],7:[7.9,82,"White","Black 6%",7.8,26.3],8:[7.4,68,"White","Asian 14%",10.2,38.7],9:[8.6,91,"White","Hispanic 5%",3.4,15.2],10:[8.4,88,"White","Hispanic 7%",4.1,17.8],11:[7.6,72,"White","Hispanic 18%",7.9,23.4],12:[8.2,84,"White","Asian 9%",4.8,18.6],13:[7.3,62,"White","Hispanic 22%",9.2,27.1],14:[5.9,58,"Hispanic","White 28%",15.8,31.2],15:[6.7,64,"White","Hispanic 25%",11.4,28.9],16:[6.1,52,"Hispanic","White 34%",14.7,32.6],17:[7.8,76,"White","Hispanic 16%",6.8,22.3],18:[6.4,61,"Hispanic","White 32%",13.1,29.7],19:[5.8,68,"Hispanic","White 22%",16.2,33.4],20:[5.2,74,"Hispanic","Black 14%",18.9,36.1],21:[6.3,55,"Hispanic","White 31%",14.3,31.8],22:[6.9,52,"White","Hispanic 32%",11.8,34.2],23:[3.8,62,"Black","Hispanic 34%",31.4,42.7],24:[6.7,56,"White","Hispanic 24%",12.9,38.4],25:[3.2,82,"Black","Hispanic 11%",36.8,44.2],26:[3.1,88,"Black","Hispanic 9%",38.4,46.1],27:[3.4,84,"Black","Hispanic 12%",35.2,43.8],28:[6.1,48,"White","Black 22%",15.7,41.3],29:[3.3,91,"Black","Hispanic 7%",36.1,44.9],30:[4.8,79,"Hispanic","Black 12%",21.4,38.7],31:[5.1,82,"Hispanic","Black 9%",19.8,36.2],32:[6.8,57,"White","Asian 18%",12.4,48.7],33:[6.2,44,"Black","White 38%",14.8,43.2],34:[5.4,71,"Asian","Hispanic 18%",17.2,34.6],35:[4.6,68,"Black","Hispanic 14%",24.7,38.9],36:[4.1,78,"Black","Hispanic 11%",28.3,41.4],37:[3.7,89,"Black","Hispanic 8%",32.6,44.8],38:[4.2,84,"Black","Hispanic 10%",27.4,40.2],39:[6.4,52,"Black","White 34%",13.8,32.7],40:[3.9,92,"Black","Hispanic 6%",30.1,43.7],41:[7.1,46,"White","Black 32%",9.4,28.6],42:[4.8,79,"Black","Hispanic 8%",22.1,38.4],43:[4.4,74,"Black","Hispanic 9%",25.8,41.2],44:[4.7,88,"Black","Hispanic 7%",23.4,39.1],45:[5.8,84,"Black","Hispanic 8%",16.4,32.8],46:[4.3,71,"Hispanic","Black 22%",26.7,41.8],47:[3.6,94,"Black","Hispanic 4%",33.8,45.3],48:[6.2,78,"Black","Hispanic 11%",14.1,31.7],49:[4.1,91,"Black","Hispanic 6%",28.9,42.6],50:[5.3,87,"Black","Hispanic 8%",18.7,37.4],51:[4.8,68,"Hispanic","Black 24%",21.9,38.2],52:[5.4,62,"Hispanic","Black 22%",18.2,34.6],53:[4.2,86,"Black","Hispanic 9%",27.6,41.9],54:[3.4,93,"Black","Hispanic 5%",35.4,46.8],55:[6.1,54,"Hispanic","White 32%",14.8,33.2],56:[7.4,72,"White","Hispanic 18%",8.4,24.7],57:[6.2,68,"Hispanic","White 24%",13.9,30.4],58:[5.7,74,"Hispanic","White 18%",16.8,34.1],59:[5.4,68,"Hispanic","Black 18%",18.1,36.4],60:[6.8,62,"Hispanic","White 24%",11.2,29.8],61:[4.1,76,"Black","Hispanic 18%",28.4,43.1],62:[5.9,72,"Hispanic","White 22%",15.4,31.8],63:[5.2,79,"Hispanic","Black 14%",19.7,36.9],64:[7.6,78,"White","Hispanic 16%",7.9,22.6],65:[5.6,76,"Hispanic","Black 14%",17.2,34.7],66:[4.8,71,"Black","Hispanic 24%",22.6,39.4],67:[3.6,92,"Black","Hispanic 6%",34.1,46.2],68:[3.4,94,"Black","Hispanic 4%",36.7,47.8],69:[4.4,86,"Black","Hispanic 8%",26.2,40.7],70:[6.4,68,"Black","White 22%",13.4,30.1],71:[4.6,91,"Black","Hispanic 6%",24.8,40.3],72:[7.8,72,"White","Black 20%",6.8,21.4],73:[5.4,88,"Black","White 8%",18.3,36.8],74:[8.1,82,"White","Hispanic 12%",5.2,19.7],75:[7.2,74,"Black","White 18%",9.7,26.8],76:[7.8,64,"White","Hispanic 22%",6.4,21.8],77:[6.9,61,"White","Hispanic 19%",10.8,32.4]}
+const VIBE={
+  1:[7,9,8,8,"Diverse Lakefront","Reggae bars, diverse dining, beach access, indie music venues, Rogers Park murals"],
+  2:[4,7,7,6,"Middle Eastern Hub","Devon Ave — Chicago's international food row, Persian restaurants, Indian sweets, multicultural markets"],
+  3:[8,9,9,9,"Jazz & Entertainment","Aragon Ballroom, Green Mill Cocktail Lounge, Vietnamese dining strip, live music every night"],
+  4:[6,8,8,7,"German-American Heritage","Old Town School of Folk Music, craft breweries, farmers market, Lincoln Square Fest"],
+  5:[5,7,7,7,"Family & Trails","North Branch Trail, local coffee shops, family dining, quiet green streets"],
+  6:[9,9,9,9,"Young Professional Mecca","Wrigley Field, rooftop bar scene, brunch culture, lakefront, improv comedy clubs"],
+  7:[7,8,9,9,"Historic Parks & Theater","Lincoln Park Zoo (free), Steppenwolf Theatre, farm-to-table dining, lakefront running"],
+  8:[8,9,9,9,"Luxury & Gallery District","Magnificent Mile, River North art galleries, rooftop bars, world-class dining, jazz"],
+  9:[3,5,5,5,"Quiet NW Corner","Local diners, Harlem Ave shopping, calm residential streets, O'Hare proximity"],
+  10:[3,5,5,5,"Polish-American Bungalows","Family restaurants, classic Chicago bungalow architecture, community parks, Polish delis"],
+  11:[4,7,6,5,"Jefferson Park Transit Hub","Blue Line gateway, local taverns, Polish and Mexican eateries, commuter-friendly"],
+  12:[3,5,5,4,"Serene Residential","Indian Boundary Park, quiet tree-lined streets, single-family homes, low density"],
+  13:[4,6,6,5,"Middle Eastern Corridor","Arab-American community, falafel and shawarma shops, Devon Ave proximity, hookah lounges"],
+  14:[5,7,7,6,"Korean-Hispanic Fusion","Korean BBQ joints, taco trucks, Lawrence Ave corridor, multicultural street food"],
+  15:[4,6,6,5,"Working-Class Polish Heritage","Classic bungalow belt, local taverns, Polish bakeries, Portage Park recreational center"],
+  16:[5,7,6,5,"Hispanic Residential","Horner Park, local taquerias, family neighborhood, Irving Park Road corridor"],
+  17:[3,5,5,4,"Far NW Residential","Large lots, O'Hare access, big-box retail, quiet suburban feel within city limits"],
+  18:[3,5,5,4,"Quiet Bungalow Belt","Single-family homes, Narragansett Park, local diners, low-key residential"],
+  19:[4,6,6,5,"Mexican-American Heart","Belmont-Cragin Park, authentic taquerias, family community, Latin street fairs"],
+  20:[4,6,6,5,"Hispanic Community","Kelvyn Park, Mexican restaurants, community gardens, Spanish-language businesses"],
+  21:[5,7,7,6,"Logan Square Spillover","Avondale's emerging dining scene, craft breweries, vintage shops, hipster encroachment"],
+  22:[8,8,9,8,"Hipster & Creative Hub","Logan Square Farmers Market, cocktail bars, indie restaurants, street murals, live music"],
+  23:[5,7,7,6,"Puerto Rican Cultural Heart","Humboldt Park boathouse, Paseo Boricua, Puerto Rican flags, Caribbean food, cultural pride"],
+  24:[8,8,9,8,"Arts & Trendy Dining","Ukrainian Village, gallery scene, Wicker Park-adjacent, diverse farm-to-table restaurants"],
+  25:[3,6,5,4,"West Side Community","Austin Town Hall cultural center, community activism, local churches, historic architecture"],
+  26:[2,6,4,3,"Garfield Park","Garfield Park Conservatory (hidden gem), historic boulevards, community-focused, improving"],
+  27:[2,7,4,3,"Garfield Park Conservatory","One of the nation's largest conservatories, historic boulevard system, community anchor"],
+  28:[6,8,7,7,"University Village / Little Italy","UIC campus energy, Little Italy dining, Greektown, diverse restaurant corridor, Taylor St"],
+  29:[2,6,4,3,"Historic West Side","Douglas Park, historic church architecture, community centers, Lawndale heritage"],
+  30:[3,6,5,4,"Little Village","26th St — Illinois' 2nd busiest shopping street, vibrant Mexican culture, murals, tamales"],
+  31:[4,6,6,5,"Pilsen Arts Gateway","Acclaimed Mexican murals, emerging gallery scene, taquerias, gentrification frontier"],
+  32:[7,10,9,10,"Chicago's Heart","Millennium Park, Art Institute, Riverwalk, theater district, world-class dining, Navy Pier"],
+  33:[5,9,7,8,"Museum Campus","Museum of Science & Industry nearby, Soldier Field, Chinatown-adjacent, McCormick Place"],
+  34:[4,8,7,6,"Chinatown","Authentic dim sum, Chinatown Gate, Asian grocery stores, bubble tea, lion dances, culture"],
+  35:[4,8,7,7,"Bronzeville Heritage","Rich jazz & blues history, IIT Mies van der Rohe campus, historic Stroll, emerging arts"],
+  36:[3,7,5,5,"Historic Bronzeville","Jazz heritage churches, historic mansions, lakefront proximity, cultural revival in progress"],
+  37:[2,6,4,3,"South Side Residential","Community-focused churches, local parks, quiet streets, Fuller Park fieldhouse"],
+  38:[4,7,6,6,"Bronzeville Renaissance","Gospel music legacy, historic greystone mansions, DuSable heritage, cultural events"],
+  39:[5,7,7,7,"Obama's Neighborhood","Historic Kenwood mansions, Obama family home area, U of C proximity, diverse dining"],
+  40:[3,7,5,6,"Washington Park","Washington Park (large historic park), DuSable Black History Museum, community events"],
+  41:[6,8,8,9,"Hyde Park Intellectual","University of Chicago campus, Obama Presidential Library (under construction), bookstores, diverse dining"],
+  42:[4,7,6,6,"South Lakefront","Jackson Park, Museum of Science and Industry nearby, golf course, quiet lakefront"],
+  43:[5,7,7,7,"South Shore Cultural Center","Stunning South Shore Cultural Center on the lake, jazz heritage, beach access, community events"],
+  44:[3,6,5,4,"Chatham Community","Chatham-Avalon Park, community-focused businesses, local diners, stable residential"],
+  45:[3,6,5,4,"Quiet Far South","Local community parks, family-oriented, Avalon Park fieldhouse"],
+  46:[3,6,6,5,"Steel Mill Heritage","Southeast Chicago industrial history, Filipino community, local diners, Calumet waterway"],
+  47:[2,5,3,2,"Small Enclave","Tiny quiet enclave, industrial surroundings, minimal amenities"],
+  48:[3,5,4,3,"Calumet Residential","Quiet residential, local parks, Southeast side community, bungalow streets"],
+  49:[3,5,5,4,"Far South Community","Pullman National Monument nearby, community gardens, historic worker housing"],
+  50:[4,6,5,6,"Pullman National Monument","Landmark 19th-century planned worker community, national monument designation, architecture tours"],
+  51:[2,5,4,3,"Industrial Southeast","Steel heritage, Southeast Side community, local parks, industrial waterways"],
+  52:[3,5,5,3,"Southeast Side","Filipino-American community, industrial history, local diners, Calumet Harbor"],
+  53:[2,5,4,3,"Far Southwest Residential","Quiet streets, community parks, local churches, suburban feel"],
+  54:[2,4,3,2,"Riverdale","Very quiet, limited amenities, community-focused, isolated far south"],
+  55:[3,4,5,4,"Southeast Nature","Hegewisch Marsh (birding, nature), isolated location, local taverns, industrial heritage"],
+  56:[3,5,5,3,"Midway Corridor","Midway Airport proximity, local diners, residential streets, bungalow neighborhood"],
+  57:[3,6,5,4,"SW Residential","Marquette Park, local Mexican restaurants, bungalow neighborhood, community parks"],
+  58:[4,6,6,5,"SW Hispanic Culture","Brighton Park murals, vibrant Mexican community, taquerias, family gatherings"],
+  59:[3,6,5,4,"McKinley Park Lagoon","McKinley Park with lagoon, local Hispanic community, quiet residential streets"],
+  60:[5,7,7,6,"Bridgeport Political Heritage","Guaranteed Rate Field (Sox Park), local bars, Chinatown adjacent, Irish-Polish political history"],
+  61:[3,6,5,4,"Back of the Yards","Historic meatpacking heritage, community gardens, murals, Back of the Yards Neighborhood Council"],
+  62:[3,6,5,4,"SW Bungalow Belt","Quiet residential, local parks, Midway proximity, Chicago bungalow architecture"],
+  63:[3,6,5,4,"SW Hispanic Community","Gage Park library, local taquerias, community centers, family neighborhood"],
+  64:[3,5,4,3,"Midway Airport Zone","Midway Airport, Southwest Side industrial, local diners, transit hub"],
+  65:[3,6,5,4,"Southwest Residential","Marquette Park, local markets, quiet streets, bungalow neighborhood"],
+  66:[3,6,5,4,"SW Hispanic","Local Mexican restaurants, Chicago Lawn Park, community events, Spanish-language businesses"],
+  67:[2,6,4,3,"West Englewood","Hamilton Park, community gardens, local churches, urban farming initiatives"],
+  68:[2,6,4,3,"Englewood Rebuilding","Community land trust projects, urban farming, historic roots, community resilience"],
+  69:[3,6,5,4,"South Side Community","Hamilton Park fieldhouse, local community, transit access, residential"],
+  70:[3,6,5,4,"Ashburn Residential","Ashburn Park, quiet bungalow streets, local shopping strips, community-focused"],
+  71:[3,6,5,4,"South Side Community","Auburn Gresham Park, local dining, community health centers, residential"],
+  72:[4,5,6,6,"Beverly Hills Chicago","Irish-American heritage, Ridge Historic District, local pubs, quiet leafy streets, bungalow showcase"],
+  73:[3,5,4,4,"South Residential","Quiet streets, local churches, community parks, stable residential neighborhood"],
+  74:[4,4,5,4,"Irish-American Southwest","Mt. Greenwood Park, Irish pubs, annual Memorial Day parade, quiet suburban feel"],
+  75:[3,5,5,5,"Morgan Park","Quiet residential, Morgan Park Academy (historic), local dining, large lot homes"],
+  76:[2,4,4,3,"O'Hare Gateway","O'Hare International Airport, Forest Preserve trails, industrial parks"],
+  77:[7,9,8,8,"North Lakefront Creative","Granville Beach, diverse restaurants, indie shops, affordable lakefront, creative community"]
+}
+const WALK={
+  1:[8,7,"Lakefront Trail access, Loyola Park beachfront, Rogers Park Community Garden paths"],
+  2:[7,6,"Skokie Lagoons nearby, Peterson Park, North Shore Channel Trail"],
+  3:[9,8,"Montrose Beach, Lakefront Trail, Margate Park, Wilson Ave pedestrian activity"],
+  4:[8,6,"Lincoln Square farmers market walk, North Branch Trail, Welles Park"],
+  5:[7,7,"North Branch Trail, Horner Park riverfront, Lincoln Square walkable corridor"],
+  6:[9,9,"Lakefront Trail (most popular segment), Wrigley Field area, Belmont Harbor running loop"],
+  7:[9,9,"Lincoln Park main running hub, 5-mile lakefront loop, North Pond, Zoo path"],
+  8:[10,8,"Lakefront Trail, Navy Pier walk, Chicago Riverwalk, Magnificent Mile"],
+  9:[4,4,"Quiet residential streets, Ebinger Woods, car-dependent area"],
+  10:[5,5,"Harlem Irving corridor, Norwood Park Historic District walks, Oriole Park"],
+  11:[7,5,"Jefferson Park greenway, Gladstone Park, North Shore Channel path"],
+  12:[5,6,"Indian Boundary Park (great for walking), Forest Glen meadow walks"],
+  13:[7,5,"Devon Ave walkable strip, River Park, North Shore Channel Trail"],
+  14:[7,6,"Ravenswood Manor park, River Park, North Branch Trail"],
+  15:[6,5,"Portage Park lagoon, Merrimac Park, bungalow belt neighborhood walks"],
+  16:[7,6,"Horner Park riverside, Irving Park corridor, North Branch Trail access"],
+  17:[3,4,"Low walkability, Schiller Woods forest preserve runs, O'Hare greenway"],
+  18:[4,4,"Narragansett Park, low pedestrian density, suburban street running"],
+  19:[5,4,"Kelvyn Park, Cragin Park, residential street running only"],
+  20:[6,4,"Kelvyn Park, quiet residential streets, limited trail access"],
+  21:[8,6,"Avondale corridor, North Branch Trail, Veteran's Memorial Park"],
+  22:[9,7,"Logan Blvd greenway (tree-lined median), Palmer Square loop, North Branch Trail"],
+  23:[7,7,"Humboldt Park (4.8 acres with lagoon), Paseo Boricua walking path"],
+  24:[9,7,"606 Trail (2.7mi elevated linear park), Ukrainian Village walks, Wicker Park streets"],
+  25:[5,4,"Austin Town Hall Park, Columbus Park (one of Jens Jensen's best), Galewood trail"],
+  26:[5,6,"Garfield Park (290 acres, Jensen-designed), Central Park lagoon runs"],
+  27:[6,7,"Garfield Park Conservatory grounds, large Jensen boulevards, Central Park loop"],
+  28:[9,7,"606 Trail western end, Skinner Park, UIC campus walk, Pilsen walks"],
+  29:[5,5,"Douglas Park (Jensen-designed), Lawndale neighborhood walks"],
+  30:[7,5,"26th St walkable commercial strip, Piotrowski Park, Douglas Park border"],
+  31:[8,7,"Pilsen mural walks, Ping Tom Memorial Park (riverfront!), 18th St corridor"],
+  32:[10,9,"Lakefront Trail, Millennium Park, Riverwalk (best urban run in IL), Grant Park"],
+  33:[9,8,"Museum Campus loop, Lakefront Trail, Northerly Island running path (3mi)"],
+  34:[8,6,"Chinatown walks, Ping Tom Park riverfront, Armour Square Park"],
+  35:[8,8,"Lakefront Trail, 31st Street Beach, IIT campus quad walking"],
+  36:[8,8,"Lakefront Trail, Oakwood Beach, 39th St harbor walking"],
+  37:[6,5,"Fuller Park, limited trail access, neighborhood walk"],
+  38:[7,8,"Lakefront Trail, 43rd St beach access, Washington Park proximity"],
+  39:[8,8,"Lakefront Trail, Hyde Park-Kenwood Historic walks, Jackson Park border"],
+  40:[7,8,"Washington Park (large meadow runs), Midway Plaisance linear park walk"],
+  41:[9,9,"Lakefront Trail, Jackson Park (642 acres), Wooded Island run, Museum of Science perimeter"],
+  42:[7,7,"Jackson Park, Midway Plaisance, South Side lakefront walk"],
+  43:[7,8,"South Shore Cultural Center grounds (beachfront), Lakefront Trail, 71st St beach"],
+  44:[6,5,"Chatham Park, residential grid running, limited trail access"],
+  45:[5,4,"Avalon Park, limited trail access"],
+  46:[5,5,"Calumet riverway, South Chicago Park, industrial area walks"],
+  47:[4,3,"Very limited walkability, industrial surroundings"],
+  48:[5,4,"Calumet Park (lakefront!), minimal trail infrastructure"],
+  49:[5,4,"Roseland Park, residential street running"],
+  50:[5,7,"Pullman National Monument walking tours, Calumet greenway"],
+  51:[4,4,"Industrial area, Trumbull Park, limited walking"],
+  52:[4,5,"Calumet Park beachfront (hidden gem!), industrial corridor walks"],
+  53:[4,4,"West Pullman Park, residential street running"],
+  54:[2,2,"Minimal infrastructure, very limited walkability"],
+  55:[3,6,"Hegewisch Marsh (birding walks!), Little Calumet River trail"],
+  56:[4,5,"Garfield Ridge Park, I&M Canal trail access, car-dependent"],
+  57:[5,5,"Marquette Park (157 acres, lagoon loop), residential grid"],
+  58:[6,6,"Marquette Park border, Brighton Park, neighborhood walks"],
+  59:[7,6,"McKinley Park (lagoon loop!), 35th St corridor walk"],
+  60:[7,6,"Guaranteed Rate Field area walk, Bridgeport Art Center, Bubbly Creek trail"],
+  61:[6,5,"Back of the Yards Park, neighborhood grid running"],
+  62:[4,5,"Cicero Ave corridor, Midway Plaisance proximity, car-dependent"],
+  63:[6,5,"Marquette Park proximity, neighborhood grid running"],
+  64:[3,4,"Midway Airport area, limited pedestrian infrastructure"],
+  65:[5,5,"Marquette Park (lagoon running), residential grid"],
+  66:[6,5,"Chicago Lawn Park, neighborhood commercial strip walks"],
+  67:[5,4,"Hamilton Park, neighborhood walking, limited trail"],
+  68:[5,5,"Englewood Nature Trail (community effort!), Hamilton Park"],
+  69:[6,6,"Hamilton Park, Rainbow Beach proximity, neighborhood runs"],
+  70:[4,4,"Ashburn Park, bungalow belt neighborhood running"],
+  71:[5,5,"Auburn Gresham Park, neighborhood grid"],
+  72:[5,7,"Ridge Trail (historic ridge), Beverly Hills neighborhood walks, Morgan Park trails"],
+  73:[4,5,"Washington Heights Park, Ridge Trail access"],
+  74:[4,5,"Mount Greenwood Park, quiet residential running"],
+  75:[5,6,"Morgan Park nature area, Ridge Trail, quiet leafy streets"],
+  76:[2,3,"O'Hare area, limited walkability, Bensenville bike path"],
+  77:[8,8,"Lakefront Trail, Loyola Beach, Granville walk, Edgewater neighborhood grid"]
+};
+const CCA_GEOJSON = {"type": "FeatureCollection", "features": [{"type": "Feature", "properties": {"id": 1, "name": "Rogers Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6714, 42.023], [-87.6921, 42.023], [-87.6921, 41.9992], [-87.673, 41.9992], [-87.6688, 42.001], [-87.6596, 41.9971], [-87.65, 42.0], [-87.65, 42.0196], [-87.6596, 42.0196], [-87.6714, 42.023]]]}}, {"type": "Feature", "properties": {"id": 2, "name": "West Ridge"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6921, 42.023], [-87.716, 42.023], [-87.716, 41.9817], [-87.6921, 41.9817], [-87.6921, 41.9992], [-87.6921, 42.023]]]}}, {"type": "Feature", "properties": {"id": 3, "name": "Uptown"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6386, 41.9668], [-87.65, 41.9668], [-87.6617, 41.9668], [-87.6617, 41.951], [-87.656, 41.9441], [-87.6386, 41.9441], [-87.6386, 41.9668]]]}}, {"type": "Feature", "properties": {"id": 4, "name": "Lincoln Square"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6688, 42.001], [-87.673, 41.9992], [-87.6921, 41.9992], [-87.716, 41.9992], [-87.716, 41.9668], [-87.6921, 41.9668], [-87.6688, 41.9668], [-87.6688, 42.001]]]}}, {"type": "Feature", "properties": {"id": 5, "name": "North Center"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6688, 41.9668], [-87.6921, 41.9668], [-87.716, 41.9668], [-87.716, 41.9441], [-87.6921, 41.9441], [-87.6688, 41.9441], [-87.6688, 41.9668]]]}}, {"type": "Feature", "properties": {"id": 6, "name": "Lake View"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.9441], [-87.6386, 41.9441], [-87.656, 41.9441], [-87.6617, 41.951], [-87.6617, 41.9668], [-87.6617, 41.9131], [-87.6386, 41.9131], [-87.6283, 41.9131], [-87.6283, 41.9441]]]}}, {"type": "Feature", "properties": {"id": 7, "name": "Lincoln Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6115, 41.9131], [-87.6386, 41.9131], [-87.6617, 41.9131], [-87.6617, 41.8983], [-87.6386, 41.8983], [-87.6283, 41.8983], [-87.6115, 41.8983], [-87.6115, 41.9131]]]}}, {"type": "Feature", "properties": {"id": 8, "name": "Near North Side"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.8983], [-87.6283, 41.8983], [-87.6386, 41.8983], [-87.6617, 41.8983], [-87.6617, 41.8726], [-87.6283, 41.8726], [-87.6115, 41.8726], [-87.6091, 41.8726], [-87.6091, 41.8983]]]}}, {"type": "Feature", "properties": {"id": 9, "name": "Edison Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7963, 41.9793], [-87.8106, 42.023], [-87.8356, 42.023], [-87.8356, 41.9793], [-87.7963, 41.9793]]]}}, {"type": "Feature", "properties": {"id": 10, "name": "Norwood Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7963, 41.9793], [-87.8356, 41.9793], [-87.8356, 41.9518], [-87.7963, 41.9518], [-87.7963, 41.9793]]]}}, {"type": "Feature", "properties": {"id": 11, "name": "Jefferson Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9793], [-87.7963, 41.9793], [-87.7963, 41.9518], [-87.7594, 41.9518], [-87.7594, 41.9793]]]}}, {"type": "Feature", "properties": {"id": 12, "name": "Forest Glen"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9992], [-87.7963, 41.9992], [-87.7963, 41.9793], [-87.7594, 41.9793], [-87.7594, 41.9992]]]}}, {"type": "Feature", "properties": {"id": 13, "name": "North Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.9992], [-87.7594, 41.9992], [-87.7594, 41.9793], [-87.716, 41.9793], [-87.716, 41.9992]]]}}, {"type": "Feature", "properties": {"id": 14, "name": "Albany Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.9793], [-87.7594, 41.9793], [-87.7594, 41.9518], [-87.716, 41.9518], [-87.716, 41.9793]]]}}, {"type": "Feature", "properties": {"id": 15, "name": "Portage Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9518], [-87.7963, 41.9518], [-87.7963, 41.9244], [-87.7594, 41.9244], [-87.7594, 41.9518]]]}}, {"type": "Feature", "properties": {"id": 16, "name": "Irving Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.9518], [-87.7594, 41.9518], [-87.7594, 41.9441], [-87.716, 41.9441], [-87.716, 41.9518]]]}}, {"type": "Feature", "properties": {"id": 17, "name": "Dunning"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7963, 41.9518], [-87.8356, 41.9518], [-87.8356, 41.9131], [-87.7963, 41.9131], [-87.7963, 41.9518]]]}}, {"type": "Feature", "properties": {"id": 18, "name": "Montclare"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9244], [-87.7963, 41.9244], [-87.7963, 41.9131], [-87.7594, 41.9131], [-87.7594, 41.9244]]]}}, {"type": "Feature", "properties": {"id": 19, "name": "Belmont Cragin"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9131], [-87.7963, 41.9131], [-87.7963, 41.8983], [-87.7594, 41.8983], [-87.7594, 41.9131]]]}}, {"type": "Feature", "properties": {"id": 20, "name": "Hermosa"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.9244], [-87.7594, 41.9244], [-87.7594, 41.9131], [-87.716, 41.9131], [-87.716, 41.9244]]]}}, {"type": "Feature", "properties": {"id": 21, "name": "Avondale"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.704, 41.9441], [-87.716, 41.9441], [-87.716, 41.9244], [-87.704, 41.9244], [-87.704, 41.9441]]]}}, {"type": "Feature", "properties": {"id": 22, "name": "Logan Square"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6688, 41.9244], [-87.704, 41.9244], [-87.704, 41.9441], [-87.6688, 41.9441], [-87.6688, 41.9244]]]}}, {"type": "Feature", "properties": {"id": 23, "name": "Humboldt Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.9131], [-87.7594, 41.9131], [-87.7594, 41.8983], [-87.716, 41.8983], [-87.716, 41.9131]]]}}, {"type": "Feature", "properties": {"id": 24, "name": "West Town"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.9131], [-87.6688, 41.9131], [-87.716, 41.9131], [-87.716, 41.8983], [-87.6935, 41.8983], [-87.6688, 41.8983], [-87.6617, 41.8983], [-87.6617, 41.9131]]]}}, {"type": "Feature", "properties": {"id": 25, "name": "Austin"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.9131], [-87.7963, 41.9131], [-87.7963, 41.8726], [-87.7594, 41.8726], [-87.7594, 41.9131]]]}}, {"type": "Feature", "properties": {"id": 26, "name": "West Garfield Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.8983], [-87.7594, 41.8983], [-87.7594, 41.8726], [-87.716, 41.8726], [-87.716, 41.8983]]]}}, {"type": "Feature", "properties": {"id": 27, "name": "East Garfield Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6935, 41.8983], [-87.716, 41.8983], [-87.716, 41.8726], [-87.6935, 41.8726], [-87.6935, 41.8983]]]}}, {"type": "Feature", "properties": {"id": 28, "name": "Near West Side"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.8983], [-87.6935, 41.8983], [-87.716, 41.8983], [-87.716, 41.8726], [-87.6935, 41.8726], [-87.6617, 41.8726], [-87.6617, 41.8983]]]}}, {"type": "Feature", "properties": {"id": 29, "name": "North Lawndale"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.8726], [-87.7594, 41.8726], [-87.7594, 41.8519], [-87.716, 41.8519], [-87.716, 41.8726]]]}}, {"type": "Feature", "properties": {"id": 30, "name": "South Lawndale"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.8519], [-87.7594, 41.8519], [-87.7594, 41.83], [-87.716, 41.83], [-87.716, 41.8519]]]}}, {"type": "Feature", "properties": {"id": 31, "name": "Lower West Side"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.8519], [-87.716, 41.8519], [-87.716, 41.83], [-87.6617, 41.83], [-87.6617, 41.8519]]]}}, {"type": "Feature", "properties": {"id": 32, "name": "Loop"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.8855], [-87.6386, 41.8855], [-87.6617, 41.8855], [-87.6617, 41.8726], [-87.6386, 41.8726], [-87.6091, 41.8726], [-87.6091, 41.8855]]]}}, {"type": "Feature", "properties": {"id": 33, "name": "Near South Side"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.8726], [-87.6386, 41.8726], [-87.6386, 41.8519], [-87.6283, 41.8519], [-87.6091, 41.8519], [-87.6091, 41.8726]]]}}, {"type": "Feature", "properties": {"id": 34, "name": "Armour Square"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.8519], [-87.6386, 41.8519], [-87.6617, 41.8519], [-87.6617, 41.83], [-87.6386, 41.819], [-87.6283, 41.819], [-87.6283, 41.8519]]]}}, {"type": "Feature", "properties": {"id": 35, "name": "Douglas"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.8519], [-87.6283, 41.8519], [-87.6283, 41.819], [-87.6091, 41.819], [-87.6091, 41.8519]]]}}, {"type": "Feature", "properties": {"id": 36, "name": "Oakland"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5921, 41.819], [-87.6091, 41.819], [-87.6091, 41.794], [-87.5921, 41.794], [-87.5921, 41.819]]]}}, {"type": "Feature", "properties": {"id": 37, "name": "Fuller Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.819], [-87.6386, 41.819], [-87.6386, 41.794], [-87.6283, 41.794], [-87.6283, 41.819]]]}}, {"type": "Feature", "properties": {"id": 38, "name": "Grand Boulevard"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.83], [-87.6283, 41.83], [-87.6386, 41.83], [-87.6386, 41.794], [-87.6091, 41.794], [-87.6091, 41.83]]]}}, {"type": "Feature", "properties": {"id": 39, "name": "Kenwood"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5756, 41.808], [-87.5921, 41.808], [-87.6091, 41.808], [-87.6091, 41.794], [-87.5756, 41.794], [-87.5756, 41.808]]]}}, {"type": "Feature", "properties": {"id": 40, "name": "Washington Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.794], [-87.6386, 41.794], [-87.6386, 41.7726], [-87.6283, 41.7726], [-87.6091, 41.7726], [-87.6091, 41.794]]]}}, {"type": "Feature", "properties": {"id": 41, "name": "Hyde Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5608, 41.794], [-87.5756, 41.794], [-87.6091, 41.794], [-87.6091, 41.7726], [-87.5608, 41.7726], [-87.5608, 41.794]]]}}, {"type": "Feature", "properties": {"id": 42, "name": "Woodlawn"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5921, 41.7726], [-87.6091, 41.7726], [-87.6091, 41.752], [-87.5921, 41.752], [-87.5921, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 43, "name": "South Shore"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5608, 41.7726], [-87.5921, 41.7726], [-87.5921, 41.752], [-87.5608, 41.752], [-87.5608, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 44, "name": "Chatham"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.752], [-87.6283, 41.752], [-87.6283, 41.73], [-87.6091, 41.73], [-87.6091, 41.752]]]}}, {"type": "Feature", "properties": {"id": 45, "name": "Avalon Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5921, 41.752], [-87.6091, 41.752], [-87.6091, 41.73], [-87.5921, 41.73], [-87.5921, 41.752]]]}}, {"type": "Feature", "properties": {"id": 46, "name": "South Chicago"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5608, 41.752], [-87.5756, 41.752], [-87.5756, 41.73], [-87.5608, 41.73], [-87.5608, 41.752]]]}}, {"type": "Feature", "properties": {"id": 47, "name": "Burnside"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.73], [-87.6386, 41.73], [-87.6386, 41.719], [-87.6283, 41.719], [-87.6283, 41.73]]]}}, {"type": "Feature", "properties": {"id": 48, "name": "Calumet Heights"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5756, 41.73], [-87.6091, 41.73], [-87.6091, 41.719], [-87.5756, 41.719], [-87.5756, 41.73]]]}}, {"type": "Feature", "properties": {"id": 49, "name": "Roseland"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.719], [-87.6617, 41.719], [-87.6617, 41.697], [-87.6283, 41.697], [-87.6283, 41.719]]]}}, {"type": "Feature", "properties": {"id": 50, "name": "Pullman"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6091, 41.719], [-87.6283, 41.719], [-87.6283, 41.697], [-87.6091, 41.697], [-87.6091, 41.719]]]}}, {"type": "Feature", "properties": {"id": 51, "name": "South Deering"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5756, 41.719], [-87.6091, 41.719], [-87.6091, 41.697], [-87.5756, 41.697], [-87.5756, 41.719]]]}}, {"type": "Feature", "properties": {"id": 52, "name": "East Side"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5394, 41.719], [-87.5756, 41.719], [-87.5756, 41.672], [-87.5394, 41.672], [-87.5394, 41.719]]]}}, {"type": "Feature", "properties": {"id": 53, "name": "West Pullman"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.719], [-87.6935, 41.719], [-87.6935, 41.697], [-87.6617, 41.697], [-87.6617, 41.719]]]}}, {"type": "Feature", "properties": {"id": 54, "name": "Riverdale"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.697], [-87.6617, 41.697], [-87.6617, 41.672], [-87.6283, 41.672], [-87.6283, 41.697]]]}}, {"type": "Feature", "properties": {"id": 55, "name": "Hegewisch"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.5235, 41.697], [-87.5394, 41.697], [-87.5756, 41.7], [-87.5756, 41.672], [-87.5235, 41.672], [-87.5235, 41.697]]]}}, {"type": "Feature", "properties": {"id": 56, "name": "Garfield Ridge"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.83], [-87.7963, 41.83], [-87.7963, 41.808], [-87.7594, 41.808], [-87.7594, 41.83]]]}}, {"type": "Feature", "properties": {"id": 57, "name": "Archer Heights"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.83], [-87.7594, 41.83], [-87.7594, 41.808], [-87.716, 41.808], [-87.716, 41.83]]]}}, {"type": "Feature", "properties": {"id": 58, "name": "Brighton Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6935, 41.83], [-87.716, 41.83], [-87.716, 41.808], [-87.6935, 41.808], [-87.6935, 41.83]]]}}, {"type": "Feature", "properties": {"id": 59, "name": "McKinley Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.83], [-87.6935, 41.83], [-87.6935, 41.808], [-87.6617, 41.808], [-87.6617, 41.83]]]}}, {"type": "Feature", "properties": {"id": 60, "name": "Bridgeport"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6386, 41.83], [-87.6617, 41.83], [-87.6617, 41.819], [-87.6386, 41.819], [-87.6386, 41.83]]]}}, {"type": "Feature", "properties": {"id": 61, "name": "New City"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.808], [-87.6935, 41.808], [-87.6935, 41.794], [-87.6617, 41.794], [-87.6617, 41.808]]]}}, {"type": "Feature", "properties": {"id": 62, "name": "West Elsdon"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.808], [-87.7594, 41.808], [-87.7594, 41.794], [-87.716, 41.794], [-87.716, 41.808]]]}}, {"type": "Feature", "properties": {"id": 63, "name": "Gage Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6935, 41.808], [-87.716, 41.808], [-87.716, 41.794], [-87.6935, 41.794], [-87.6935, 41.808]]]}}, {"type": "Feature", "properties": {"id": 64, "name": "Clearing"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.7594, 41.808], [-87.7963, 41.808], [-87.7963, 41.7726], [-87.7594, 41.7726], [-87.7594, 41.808]]]}}, {"type": "Feature", "properties": {"id": 65, "name": "West Lawn"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.794], [-87.7594, 41.794], [-87.7594, 41.7726], [-87.716, 41.7726], [-87.716, 41.794]]]}}, {"type": "Feature", "properties": {"id": 66, "name": "Chicago Lawn"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6935, 41.794], [-87.716, 41.794], [-87.716, 41.7726], [-87.6935, 41.7726], [-87.6935, 41.794]]]}}, {"type": "Feature", "properties": {"id": 67, "name": "West Englewood"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.7726], [-87.6935, 41.7726], [-87.6935, 41.752], [-87.6617, 41.752], [-87.6617, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 68, "name": "Englewood"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6386, 41.7726], [-87.6617, 41.7726], [-87.6617, 41.752], [-87.6386, 41.752], [-87.6386, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 69, "name": "Greater Grand Crossing"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6283, 41.7726], [-87.6386, 41.7726], [-87.6386, 41.752], [-87.6283, 41.752], [-87.6283, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 70, "name": "Ashburn"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.716, 41.7726], [-87.7594, 41.7726], [-87.7594, 41.73], [-87.716, 41.73], [-87.716, 41.7726]]]}}, {"type": "Feature", "properties": {"id": 71, "name": "Auburn Gresham"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.752], [-87.6935, 41.752], [-87.6935, 41.73], [-87.6617, 41.73], [-87.6617, 41.752]]]}}, {"type": "Feature", "properties": {"id": 72, "name": "Beverly"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.73], [-87.6935, 41.73], [-87.6935, 41.708], [-87.6617, 41.708], [-87.6617, 41.73]]]}}, {"type": "Feature", "properties": {"id": 73, "name": "Washington Heights"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6386, 41.73], [-87.6617, 41.73], [-87.6617, 41.708], [-87.6386, 41.708], [-87.6386, 41.73]]]}}, {"type": "Feature", "properties": {"id": 74, "name": "Mount Greenwood"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6935, 41.708], [-87.716, 41.708], [-87.716, 41.69], [-87.6935, 41.69], [-87.6935, 41.708]]]}}, {"type": "Feature", "properties": {"id": 75, "name": "Morgan Park"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.6617, 41.708], [-87.6935, 41.708], [-87.6935, 41.69], [-87.6617, 41.69], [-87.6617, 41.708]]]}}, {"type": "Feature", "properties": {"id": 76, "name": "O'Hare"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.8356, 41.964], [-87.9402, 41.964], [-87.9402, 42.023], [-87.8356, 42.023], [-87.8356, 41.964]]]}}, {"type": "Feature", "properties": {"id": 77, "name": "Edgewater"}, "geometry": {"type": "Polygon", "coordinates": [[[-87.65, 41.9935], [-87.6688, 42.001], [-87.6688, 41.9992], [-87.6688, 41.9668], [-87.6617, 41.9668], [-87.65, 41.9668], [-87.65, 41.9935]]]}}]};
+;
+const CENTROIDS={1:[42.01047,-87.6688],2:[42.00527,-87.70007],3:[41.95806,-87.64931],4:[41.9875,-87.68695],5:[41.95707,-87.68894],6:[41.93706,-87.6448],7:[41.9057,-87.63293],8:[41.88688,-87.6286],9:[41.99678,-87.81488],10:[41.9683,-87.81202],11:[41.9683,-87.77416],12:[41.99124,-87.77416],13:[41.99124,-87.73336],14:[41.9683,-87.73336],15:[41.94084,-87.77416],16:[41.94872,-87.73336],17:[41.93632,-87.81202],18:[41.91988,-87.77416],19:[41.90718,-87.77416],20:[41.91988,-87.73336],21:[41.93622,-87.7088],22:[41.93228,-87.68288],23:[41.90718,-87.73336],24:[41.9057,-87.68103],25:[41.8969,-87.77416],26:[41.88802,-87.73336],27:[41.88802,-87.7025],28:[41.88729,-87.6863],29:[41.86432,-87.73336],30:[41.84314,-87.73336],31:[41.84314,-87.68342],32:[41.87997,-87.63256],33:[41.86225,-87.62213],34:[41.83937,-87.64079],35:[41.83874,-87.61678],36:[41.809,-87.5989],37:[41.809,-87.63242],38:[41.818,-87.62213],39:[41.80333,-87.58952],40:[41.7833,-87.62213],41:[41.78687,-87.57937],42:[41.76436,-87.5989],43:[41.76436,-87.57332],44:[41.7432,-87.61678],45:[41.7432,-87.5989],46:[41.7432,-87.56672],47:[41.7256,-87.63242],48:[41.7256,-87.589],49:[41.7102,-87.64166],50:[41.7102,-87.61678],51:[41.7102,-87.589],52:[41.7002,-87.55388],53:[41.7102,-87.67442],54:[41.687,-87.64166],55:[41.68917,-87.54352],56:[41.8212,-87.77416],57:[41.8212,-87.73336],58:[41.8212,-87.7025],59:[41.8212,-87.67442],60:[41.8256,-87.64784],61:[41.8024,-87.67442],62:[41.8024,-87.73336],63:[41.8024,-87.7025],64:[41.79384,-87.77416],65:[41.78544,-87.73336],66:[41.78544,-87.7025],67:[41.76436,-87.67442],68:[41.76436,-87.64784],69:[41.76436,-87.63242],70:[41.75556,-87.73336],71:[41.7432,-87.67442],72:[41.7212,-87.67442],73:[41.7212,-87.64784],74:[41.7008,-87.7025],75:[41.7008,-87.67442],76:[41.9876,-87.87744],77:[41.98394,-87.65973]};
+
+// ═══════════════════════════════════════════════════════
+// CONSTANTS & HELPERS
+// ═══════════════════════════════════════════════════════
+const ZC = ['#a8ff78','#6ee7b7','#fcd34d','#fb923c','#7c3322'];
+const RACE_COL = {White:'#60a5fa',Black:'#f87171',Hispanic:'#fb923c','S.Asian':'#c084fc',Asian:'#34d399'};
+
+const safeCol = s => s>=8?'#a8ff78':s>=6.5?'#6ee7b7':s>=5?'#fcd34d':s>=3.5?'#fb923c':'#7c3322';
+const walkCol = s => s>=8?'#a8ff78':s>=6?'#2dd4bf':s>=4?'#fcd34d':'#fb923c';
+const safeWord= s => s>=8?'Very Safe':s>=6.5?'Safe':s>=5?'Moderate':s>=3.5?'Elevated':'High Crime';
+const raceC   = r => RACE_COL[r]||'#888';
+const fmt     = n => '$'+Math.abs(n).toLocaleString();
+
+// State
+let S = {
+  salary:55000,target:500,rentOvr:0,loan:0,rins:15,
+  gasOn:true,gas:65,elecOn:true,elec:60,wifiOn:false,wifi:55,
+  groc:388,dine:0,emphi:true,hprem:150,oop:50,
+  car:false,carpay:350,carins:130,cargas:130,cta:105,
+  subs:50,misc:100
+};
+let selId=null, mapMode='cost', sortMode='s', lastP='', gmap=null, dLayer=null;
+
+// Finance calculations
+function takeHome(g){
+  const il=g*.0495, fi=g*.0765, ft=Math.max(0,g-14600);
+  let fed = ft>100525 ? 17168.5+(ft-100525)*.32
+           : ft>47150  ? 5426+(ft-47150)*.22
+           : ft>11600  ? 1160+(ft-11600)*.12
+           : ft*.10;
+  return Math.round((g-il-fed-fi)/12);
+}
+function nonRent(){
+  let c = S.groc+S.dine+S.oop+S.subs+S.misc+S.rins+S.loan;
+  if(S.emphi) c += S.hprem;
+  c += S.car ? S.carpay+S.carins+S.cargas : S.cta;
+  if(S.gasOn)  c += S.gas;
+  if(S.elecOn) c += S.elec;
+  if(S.wifiOn) c += S.wifi;
+  return Math.round(c);
+}
+function effRent(r){ return S.rentOvr>0 ? S.rentOvr : r; }
+function surplus(r){ return takeHome(S.salary) - effRent(r) - nonRent(); }
+function zi(s){ const d=s-S.target; return d>=300?0:d>=0?1:d>=-300?2:d>=-700?3:4; }
+
+// ═══════════════════════════════════════════════════════
+// GOOGLE MAPS INIT
+// ═══════════════════════════════════════════════════════
+window.initMap = function() {
+
+  // ── SVG Label overlay ──
+  class NLabel extends google.maps.OverlayView {
+    constructor(id,lat,lng){super();this.id=id;this.lat=lat;this.lng=lng;this.div=null;}
+    onAdd(){
+      const div=document.createElement('div');
+      div.style.cssText='position:absolute;transform:translate(-50%,-50%);pointer-events:none;z-index:200;white-space:nowrap;';
+      const nm=NAMES[this.id]||'';
+      let s=nm;
+      if(nm.length>14){
+        const w=nm.split(' ');
+        s = w.length>=3 ? w.slice(0,2).join(' ')
+          : nm.replace(' Heights','').replace(' Square','').replace(' Center','').replace(' District','').replace(' Park','');
+      }
+      const sw=s.length*6.8+10;
+      div.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="'+sw+'" height="17" style="overflow:visible">'
+        +'<text x="'+Math.round(sw/2)+'" y="12" text-anchor="middle" '
+        +'font-family="DM Sans,system-ui,sans-serif" font-size="12" font-weight="600" '
+        +'stroke="rgba(5,8,16,0.92)" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke" '
+        +'fill="rgba(240,244,255,0.95)" letter-spacing="-0.2">'+s+'</text></svg>';
+      this.div=div;
+      this.getPanes().overlayLayer.appendChild(div);
+    }
+    draw(){
+      if(!this.div) return;
+      const p=this.getProjection()?.fromLatLngToDivPixel(new google.maps.LatLng(this.lat,this.lng));
+      if(p){this.div.style.left=p.x+'px';this.div.style.top=p.y+'px';}
+    }
+    onRemove(){this.div?.parentNode?.removeChild(this.div);this.div=null;}
+  }
+
+  // ── Dark map style ──
+  gmap = new google.maps.Map(document.getElementById('gmap'),{
+    center:{lat:41.845,lng:-87.72}, zoom:11,
+    mapTypeId:'roadmap', mapTypeControl:false, streetViewControl:false, fullscreenControl:false,
+    zoomControlOptions:{position:google.maps.ControlPosition.RIGHT_CENTER},
+    styles:[
+      {featureType:'all',elementType:'labels.text.fill',stylers:[{color:'#4a6080'}]},
+      {featureType:'all',elementType:'labels.text.stroke',stylers:[{color:'#050810'}]},
+      {featureType:'administrative.neighborhood',stylers:[{visibility:'off'}]},
+      {featureType:'landscape',stylers:[{color:'#070c18'}]},
+      {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+      {featureType:'poi.park',elementType:'geometry',stylers:[{color:'#0a1508'}]},
+      {featureType:'poi.park',elementType:'geometry.stroke',stylers:[{color:'#0f2010'}]},
+      {featureType:'road.local',elementType:'geometry.fill',stylers:[{color:'#111825'}]},
+      {featureType:'road.arterial',elementType:'geometry.fill',stylers:[{color:'#162035'}]},
+      {featureType:'road.highway',elementType:'geometry.fill',stylers:[{color:'#1e2d4a'}]},
+      {featureType:'road',elementType:'geometry.stroke',stylers:[{color:'#080c14'}]},
+      {featureType:'transit',stylers:[{color:'#0e1625'}]},
+      {featureType:'transit.station',elementType:'labels',stylers:[{visibility:'off'}]},
+      {featureType:'water',stylers:[{color:'#030810'}]},
+    ]
+  });
+
+  dLayer = new google.maps.Data({map:gmap});
+  dLayer.addGeoJson(CCA_GEOJSON);
+  dLayer.setStyle(styleF);
+
+  // ── Tooltip logic ──
+  const tip = document.getElementById('tip');
+  const mapEl = document.querySelector('.c-map');
+
+  function showTip(id, e){
+    const r=RENT[id],st=STATS[id],vb=VIBE[id],wk=WALK[id];
+    if(!r) return;
+    const s=surplus(r), col=ZC[zi(s)];
+    document.getElementById('tip-name').textContent  = NAMES[id]||'CCA #'+id;
+    const se=document.getElementById('tip-surp');
+    se.style.color=col; se.textContent=(s>=0?'+':'')+fmt(s)+'/mo';
+    document.getElementById('tip-accent').style.background=col;
+    document.getElementById('tip-rent').textContent  = '$'+effRent(r).toLocaleString()+'/mo';
+    document.getElementById('tip-total').textContent = '$'+(effRent(r)+nonRent()).toLocaleString()+'/mo';
+    if(st){
+      const se2=document.getElementById('tip-safe');
+      se2.textContent=st[0].toFixed(1)+'/10'; se2.style.color=safeCol(st[0]);
+    }
+    if(wk){
+      const we=document.getElementById('tip-wr');
+      we.textContent='🚶'+wk[0]+'/10  🏃‍♂️'+wk[1]+'/10';
+    }
+    if(vb) document.getElementById('tip-vibe').textContent='🎯 '+vb[4]+' · '+vb[5].split(',').slice(0,2).join(',');
+    posTip(e); tip.classList.add('show');
+  }
+  function posTip(e){
+    if(!e) return;
+    const rect=mapEl.getBoundingClientRect();
+    let lx=e.domEvent.clientX-rect.left+16, ly=e.domEvent.clientY-rect.top-14;
+    if(lx+270>rect.width)  lx=e.domEvent.clientX-rect.left-275;
+    if(ly+260>rect.height) ly=e.domEvent.clientY-rect.top-265;
+    if(ly<5) ly=5;
+    tip.style.left=lx+'px'; tip.style.top=ly+'px';
+  }
+  function hideTip(){ tip.classList.remove('show'); }
+
+  // ── Layer listeners — locked selection ──
+  dLayer.addListener('mouseover', e=>{
+    const id=e.feature.getProperty('id');
+    if(selId!==id) dLayer.overrideStyle(e.feature,{fillOpacity:.85,strokeWeight:2,strokeColor:'rgba(255,255,255,.55)'});
+    showTip(id,e);
+    if(!selId) showDetail(id,false);
+  });
+  dLayer.addListener('mousemove', e=>{ posTip(e); });
+  dLayer.addListener('mouseout', e=>{
+    if(selId!==e.feature.getProperty('id')) dLayer.revertStyle(e.feature);
+    hideTip();
+    if(!selId) clearDetail();
+  });
+  dLayer.addListener('click', e=>{
+    const id=e.feature.getProperty('id'); hideTip();
+    if(selId===id){ selId=null; dLayer.revertStyle(e.feature); clearDetail(); }
+    else {
+      if(selId) dLayer.revertStyle();
+      selId=id;
+      dLayer.overrideStyle(e.feature,{fillOpacity:.93,strokeWeight:3,strokeColor:'rgba(255,255,255,.8)'});
+      showDetail(id,true);
+    }
+  });
+
+  // ── Build neighborhood name labels ──
+  Object.entries(CENTROIDS).forEach(([id,[lat,lng]])=>{
+    const lbl=new NLabel(parseInt(id),lat,lng); lbl.setMap(gmap);
+  });
+
+  updateKPIs(); colorMap(); renderChart('bwrap'); triggerInsight('init');
+};
+
+// ═══════════════════════════════════════════════════════
+// MAP STYLING
+// ═══════════════════════════════════════════════════════
+function styleF(f){
+  const id=f.getProperty('id'), r=RENT[id], st=STATS[id], wk=WALK[id];
+  let fc='#1a2540';
+  if(mapMode==='cost'   && r)  fc=ZC[zi(surplus(r))];
+  else if(mapMode==='safety' && st) fc=safeCol(st[0]);
+  else if(mapMode==='demo'   && st) fc=raceC(st[2]);
+  else if(mapMode==='walk'   && wk) fc=walkCol(wk[0]);
+  else if(mapMode==='run'    && wk) fc=walkCol(wk[1]);
+  const sel=selId===id;
+  return{fillColor:fc,fillOpacity:sel?.93:.58,strokeColor:sel?'rgba(255,255,255,.75)':'rgba(255,255,255,.15)',strokeWeight:sel?3:.7,cursor:'pointer'};
+}
+function colorMap(){ if(dLayer){dLayer.setStyle(styleF); updateLegend();} }
+function setMode(m,btn){
+  mapMode=m; document.querySelectorAll('.mpill').forEach(b=>b.classList.remove('on')); btn.classList.add('on'); colorMap();
+}
+
+// ═══════════════════════════════════════════════════════
+// DETAIL PANEL
+// ═══════════════════════════════════════════════════════
+function showDetail(id,locked){
+  const r=RENT[id],st=STATS[id],vb=VIBE[id],wk=WALK[id];
+  if(!r) return;
+  const TH=takeHome(S.salary), R=effRent(r), s=surplus(r), NR=nonRent(), gap=s-S.target;
+  const col=ZC[zi(s)], nm=NAMES[id]||'CCA #'+id;
+
+  // Finance
+  document.getElementById('fin-ph').style.display='none';
+  document.getElementById('fin-ct').style.display='flex';
+  document.getElementById('det-nm').textContent=nm;
+  document.getElementById('det-meta').textContent=locked?'CCA #'+id+' — click again to deselect':'CCA #'+id+' (hovering)';
+  const se=document.getElementById('fn-surp'); se.style.color=col; se.textContent=(s>=0?'+':'')+fmt(s);
+  const ae=document.getElementById('fn-yr'); ae.style.color=s>0?ZC[0]:'var(--t2)'; ae.textContent=s>0?'$'+(s*12).toLocaleString():'—';
+  document.getElementById('dr-rent').textContent='$'+R.toLocaleString()+'/mo';
+  document.getElementById('dr-th').textContent='$'+TH.toLocaleString()+'/mo';
+  document.getElementById('dr-nr').textContent='$'+NR.toLocaleString()+'/mo';
+  document.getElementById('dr-tot').textContent='$'+(R+NR).toLocaleString()+'/mo';
+  document.getElementById('dr-bur').textContent=Math.round(R/TH*100)+'% of take-home';
+  const ve=document.getElementById('dr-vs'); ve.style.color=gap>=0?ZC[0]:ZC[4]; ve.textContent=(gap>=0?'+':'')+gap.toLocaleString()+'/mo';
+
+  // Safety
+  if(st){
+    document.getElementById('safe-ph').style.display='none'; document.getElementById('safe-ct').style.display='flex';
+    document.getElementById('safe-nm').textContent=nm;
+    const sc=st[0];
+    document.getElementById('safe-num').style.color=safeCol(sc); document.getElementById('safe-num').textContent=sc.toFixed(1);
+    const b=document.getElementById('safe-bar'); b.style.width=(sc/10*100)+'%'; b.style.background=safeCol(sc);
+    document.getElementById('safe-word').style.color=safeCol(sc); document.getElementById('safe-word').textContent=safeWord(sc);
+    document.getElementById('safe-sub').textContent=st[4]+' violent · '+st[5]+' property per 1,000 residents';
+    document.getElementById('demo-dot').style.background=raceC(st[2]);
+    document.getElementById('demo-txt').innerHTML='<b>'+st[1]+'% '+st[2]+'</b> dominant · '+st[3]+' second largest';
+  }
+
+  // Vibe
+  if(vb){
+    document.getElementById('vibe-ph').style.display='none'; document.getElementById('vibe-ct').style.display='flex';
+    document.getElementById('vibe-nm').textContent=nm;
+    document.getElementById('vibe-label').textContent=vb[4];
+    document.getElementById('vibe-desc').textContent=vb[5];
+    [['nl',vb[0]],['tr',vb[1]],['rs',vb[2]],['td',vb[3]]].forEach(([k,v])=>{
+      document.getElementById('vf-'+k).style.width=(v/10*100)+'%';
+      document.getElementById('vs-'+k).textContent=v+'/10';
+    });
+    document.getElementById('vibe-ov').textContent=((vb[0]+vb[1]+vb[2]+vb[3])/4).toFixed(1)+'/10';
+  }
+
+  // Walk/Run
+  if(wk){
+    document.getElementById('wr-ph').style.display='none'; document.getElementById('wr-ct').style.display='flex';
+    document.getElementById('wr-nm').textContent=nm;
+    document.getElementById('wr-wfill').style.width=(wk[0]/10*100)+'%';
+    document.getElementById('wr-wnum').textContent=wk[0]+'/10';
+    document.getElementById('wr-rfill').style.width=(wk[1]/10*100)+'%';
+    document.getElementById('wr-rnum').textContent=wk[1]+'/10';
+    document.getElementById('wr-desc').textContent=wk[2];
+  }
+}
+
+function clearDetail(){
+  ['fin-ph','safe-ph','vibe-ph','wr-ph'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='flex';});
+  ['fin-ct','safe-ct','vibe-ct','wr-ct'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none';});
+}
+
+function setTab(t){
+  document.querySelectorAll('.dtab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('rt-'+t).classList.add('on');
+  document.querySelectorAll('.dpanel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('rp-'+t).classList.add('on');
+}
+
+// ═══════════════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════════════
+function updateKPIs(){
+  const TH=takeHome(S.salary), NR=nonRent();
+  const all=Object.keys(RENT).map(id=>({s:surplus(RENT[+id])}));
+  const meet=all.filter(x=>x.s>=S.target).length;
+  const best=all.reduce((a,b)=>a.s>b.s?a:b);
+  const worst=all.reduce((a,b)=>a.s<b.s?a:b);
+  document.getElementById('kpi-th').textContent  ='$'+TH.toLocaleString();
+  document.getElementById('kpi-meet').textContent = meet+'/77';
+  document.getElementById('kpi-costs').textContent='$'+NR.toLocaleString();
+  document.getElementById('kpi-span').textContent ='$'+Math.abs((best.s-worst.s)*12).toLocaleString();
+}
+
+// ═══════════════════════════════════════════════════════
+// LEGEND
+// ═══════════════════════════════════════════════════════
+function updateLegend(){
+  const lb=document.getElementById('leg-body'), lt=document.getElementById('leg-ttl');
+  if(mapMode==='cost'){
+    lt.textContent='Monthly surplus vs goal';
+    const cnt=[0,0,0,0,0];
+    Object.keys(RENT).forEach(id=>cnt[zi(surplus(RENT[+id]))]++);
+    lb.innerHTML=`
+      <div class="leg-row"><div class="leg-sw" style="background:#a8ff78"></div>+$300+ above goal<span class="leg-ct">${cnt[0]}</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#6ee7b7"></div>$0 to +$300<span class="leg-ct">${cnt[1]}</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#fcd34d"></div>$0 to −$300<span class="leg-ct">${cnt[2]}</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>−$300 to −$700<span class="leg-ct">${cnt[3]}</span></div>
+      <div class="leg-row"><div class="leg-sw" style="background:#7c3322"></div>−$700+ below<span class="leg-ct">${cnt[4]}</span></div>`;
+  } else if(mapMode==='safety'){
+    lt.textContent='Safety Index (Chicago PD)';
+    lb.innerHTML=`<div class="leg-row"><div class="leg-sw" style="background:#a8ff78"></div>Very Safe (8–10)</div><div class="leg-row"><div class="leg-sw" style="background:#6ee7b7"></div>Safe (6.5–7.9)</div><div class="leg-row"><div class="leg-sw" style="background:#fcd34d"></div>Moderate (5–6.4)</div><div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>Elevated (3.5–4.9)</div><div class="leg-row"><div class="leg-sw" style="background:#7c3322"></div>High Crime (&lt;3.5)</div>`;
+  } else if(mapMode==='demo'){
+    lt.textContent='Dominant demographic';
+    lb.innerHTML=`<div class="leg-row"><div class="leg-sw" style="background:#60a5fa"></div>Majority White</div><div class="leg-row"><div class="leg-sw" style="background:#f87171"></div>Majority Black</div><div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>Majority Hispanic</div><div class="leg-row"><div class="leg-sw" style="background:#34d399"></div>Majority Asian</div><div class="leg-row"><div class="leg-sw" style="background:#c084fc"></div>S.Asian majority</div>`;
+  } else if(mapMode==='walk'){
+    lt.textContent="Walkability Score (1–10)";
+    lb.innerHTML=`<div class="leg-row"><div class="leg-sw" style="background:#a8ff78"></div>Walker's Paradise (8–10)</div><div class="leg-row"><div class="leg-sw" style="background:#2dd4bf"></div>Very Walkable (6–7.9)</div><div class="leg-row"><div class="leg-sw" style="background:#fcd34d"></div>Somewhat Walkable (4–5.9)</div><div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>Car Dependent (&lt;4)</div>`;
+  } else {
+    lt.textContent='Running / Outdoor Score (1–10)';
+    lb.innerHTML=`<div class="leg-row"><div class="leg-sw" style="background:#a8ff78"></div>Excellent trails (8–10)</div><div class="leg-row"><div class="leg-sw" style="background:#2dd4bf"></div>Good parks (6–7.9)</div><div class="leg-row"><div class="leg-sw" style="background:#fcd34d"></div>Limited options (4–5.9)</div><div class="leg-row"><div class="leg-sw" style="background:#fb923c"></div>Minimal (&lt;4)</div>`;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// BAR CHART
+// ═══════════════════════════════════════════════════════
+function renderChart(wrapId){
+  const wrap=document.getElementById(wrapId); if(!wrap) return; wrap.innerHTML='';
+  const all=Object.keys(RENT).map(id=>({id:+id,n:NAMES[+id]||'',r:RENT[+id],s:surplus(RENT[+id]),st:STATS[+id],wk:WALK[+id]}));
+  if(sortMode==='s')      all.sort((a,b)=>b.s-a.s);
+  else if(sortMode==='r') all.sort((a,b)=>effRent(a.r)-effRent(b.r));
+  else if(sortMode==='sf')all.sort((a,b)=>(b.st?b.st[0]:0)-(a.st?a.st[0]:0));
+  else if(sortMode==='w') all.sort((a,b)=>(b.wk?b.wk[0]:0)-(a.wk?a.wk[0]:0));
+  else all.sort((a,b)=>a.n.localeCompare(b.n));
+  const mx=Math.max(...all.map(x=>Math.abs(x.s)))+50;
+  const ZL=['+$300+','$0–+$300','$0–-$300','-$300–-$700','<-$700'];
+  let pz=-1;
+  all.forEach(d=>{
+    const z=zi(d.s);
+    if(z!==pz && sortMode==='s'){const h=document.createElement('div');h.className='zone-lbl';h.textContent=ZL[z];wrap.appendChild(h);pz=z;}
+    const pct=Math.min(97,Math.abs(d.s)/mx*100);
+    const ss=d.st?`<span style="color:${safeCol(d.st[0])};font-size:12px"> ${d.st[0]}</span>`:'';
+    const ws=d.wk?`<span style="color:${walkCol(d.wk[0])};font-size:12px"> 🚶${d.wk[0]}</span>`:'';
+    const row=document.createElement('div'); row.className='brow';
+    row.innerHTML=`<div class="bn">${d.n}${ss}${ws}</div><div class="bt"><div class="bf" style="background:${ZC[z]}" data-p="${pct}"></div></div><div class="bv" style="color:${ZC[z]}">${d.s>=0?'+':''}$${Math.abs(d.s).toLocaleString()}</div>`;
+    row.addEventListener('click',()=>{selId=d.id;showDetail(d.id,true);});
+    wrap.appendChild(row);
+  });
+  requestAnimationFrame(()=>wrap.querySelectorAll('[data-p]').forEach(b=>b.style.width=b.dataset.p+'%'));
+}
+
+function setSort(m,btn){
+  sortMode=m;
+  document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('on')); btn.classList.add('on');
+  renderChart('bwrap'); renderChart('bwrap-ov');
+}
+
+// ═══════════════════════════════════════════════════════
+// INSIGHT ENGINE
+// ═══════════════════════════════════════════════════════
+function genInsight(p){
+  const TH=takeHome(S.salary), NR=nonRent();
+  const all=Object.keys(RENT).map(id=>({id:+id,n:NAMES[+id],r:RENT[+id],s:surplus(RENT[+id]),st:STATS[+id],wk:WALK[+id]}));
+  const viable=all.filter(x=>x.s>=S.target);
+  const best=all.reduce((a,b)=>a.s>b.s?a:b);
+  const safViable=viable.filter(x=>x.st&&x.st[0]>=6.5);
+  const walkViable=viable.filter(x=>x.wk&&x.wk[0]>=7);
+  const cheapSafe=all.filter(x=>x.st&&x.st[0]>=6.5).sort((a,b)=>effRent(a.r)-effRent(b.r))[0];
+
+  if(p==='init') return `👋 $${S.salary.toLocaleString()}/yr → $${TH.toLocaleString()}/mo take-home. Click any block on the map to explore finances, safety, vibe, and walkability. Try 🚶‍♂️ Walk and 🏃‍♂️ Run map modes to see outdoor-friendly areas.`;
+  if(p==='sl-sal'){
+    if(S.salary<45000) return `⚠️ At $${S.salary.toLocaleString()}/yr, only ${viable.length} areas meet your $${S.target} goal. Cheapest safe pick: ${cheapSafe?.n||'Garfield Ridge'} (~$${cheapSafe?effRent(cheapSafe.r):997}/mo).`;
+    if(S.salary>=90000) return `✅ $${S.salary.toLocaleString()}/yr puts you in ${viable.length}/77 neighborhoods. ${walkViable.length} also score 7+ walkability. Best: ${best.n} at +$${best.s.toLocaleString()}/mo.`;
+    return `📊 $${TH.toLocaleString()}/mo take-home → ${viable.length} neighborhoods hit your goal. ${safViable.length} score 6.5+ safety, ${walkViable.length} score 7+ walkability.`;
+  }
+  if(p==='sl-tgt'){
+    if(viable.length===0) return `🚨 $${S.target}/mo goal unachievable at this salary in all 77 neighborhoods. Closest: ${best.n} at ${best.s>=0?'+':''}$${best.s}/mo.`;
+    return `🎯 $${S.target}/mo reachable in ${viable.length}/77 areas. ${walkViable.length} of those score 7+ walkability — great for car-free living.`;
+  }
+  if(p==='sl-rent') return S.rentOvr===0 ? `📍 Using ACS data. 2025 market rents run 10–18% higher in Logan Square, Pilsen, Bridgeport. Use override.` : `🏠 At $${S.rentOvr.toLocaleString()}/mo rent, ${viable.length} neighborhoods work for you.`;
+  if(p==='sw-car'||p.startsWith('sl-car')){
+    const cc=S.car?S.carpay+S.carins+S.cargas:0;
+    return S.car ? `🚗 Car costs $${cc}/mo vs CTA $${S.cta}/mo — $${cc-S.cta} premium. ${viable.length} neighborhoods viable.` : `🚇 Car-free → ${viable.length} viable areas. ${walkViable.length} score 7+ walkability — lean into Lincoln Park, Lake View, Near North.`;
+  }
+  if(p==='sl-loan') return S.loan===0 ? `✅ No debt — ${viable.length} areas work.` : `💳 $${S.loan}/mo debt narrows options to ${viable.length} neighborhoods.`;
+  if(p==='sl-groc'||p==='sl-dine') return `🛒 Food budget $${S.groc+S.dine}/mo. NW Side Aldi/Jewel runs 15–20% cheaper than lakefront stores. ${viable.length} neighborhoods viable.`;
+  if(viable.length===0) return `🚨 No neighborhood meets your $${S.target}/mo goal. Closest: ${best.n} at ${best.s>=0?'+':''}$${best.s}/mo.`;
+  return `📍 ${viable.length}/77 neighborhoods work for your budget. ${walkViable.length} score 7+ walkability. Best: ${best.n} (+$${best.s.toLocaleString()}/mo).`;
+}
+
+let insTimer=null;
+function triggerInsight(p){
+  if(insTimer) clearTimeout(insTimer);
+  insTimer=setTimeout(()=>{
+    const el=document.getElementById('ins-txt');
+    el.classList.add('fade');
+    setTimeout(()=>{el.textContent=genInsight(p);el.classList.remove('fade');},180);
+  },120);
+}
+
+// ═══════════════════════════════════════════════════════
+// INPUT READING & STATE SYNC
+// ═══════════════════════════════════════════════════════
+const G = id => document.getElementById(id);
+const SV = (id,v) => { const e=G(id); if(e) e.textContent=v; };
+const TOG = (id,show) => { const e=G(id); if(e) e.style.display=show?'':'none'; };
+
+function readInputs(){
+  S.salary=+G('sl-sal').value; S.target=+G('sl-tgt').value;
+  S.rentOvr=+G('sl-rent').value; S.loan=+G('sl-loan').value; S.rins=+G('sl-rins').value;
+  S.gasOn=G('sw-gas').checked;   S.gas=+G('sl-gas').value;
+  S.elecOn=G('sw-elec').checked; S.elec=+G('sl-elec').value;
+  S.wifiOn=G('sw-wifi').checked; S.wifi=+G('sl-wifi').value;
+  S.groc=+G('sl-groc').value; S.dine=+G('sl-dine').value;
+  S.emphi=G('sw-emphi').checked; S.hprem=+G('sl-hprem').value; S.oop=+G('sl-oop').value;
+  S.car=G('sw-car').checked;
+  S.carpay=+G('sl-carpay').value; S.carins=+G('sl-carins').value; S.cargas=+G('sl-cargas').value;
+  S.cta=+G('sl-cta').value; S.subs=+G('sl-subs').value; S.misc=+G('sl-misc').value;
+
+  SV('dv-sal','$'+S.salary.toLocaleString()); SV('dv-tgt','$'+S.target);
+  SV('dv-rent',S.rentOvr>0?'$'+S.rentOvr+'/mo':'ACS'); SV('dv-loan','$'+S.loan); SV('dv-rins','$'+S.rins+'/mo');
+  SV('dv-gas','$'+S.gas+'/mo'); SV('dv-elec','$'+S.elec+'/mo'); SV('dv-wifi','$'+S.wifi+'/mo');
+  SV('dv-groc','$'+S.groc+'/mo'); SV('dv-dine','$'+S.dine+'/mo');
+  SV('dv-hprem','$'+S.hprem+'/mo'); SV('dv-oop','$'+S.oop+'/mo');
+  SV('dv-carpay','$'+S.carpay+'/mo'); SV('dv-carins','$'+S.carins+'/mo'); SV('dv-cargas','$'+S.cargas+'/mo');
+  SV('dv-cta','$'+S.cta+'/mo'); SV('dv-subs','$'+S.subs+'/mo'); SV('dv-misc','$'+S.misc+'/mo');
+
+  TOG('rw-gas',S.gasOn); TOG('rw-elec',S.elecOn); TOG('rw-wifi',S.wifiOn);
+  TOG('rw-car',S.car); TOG('rw-cta',!S.car); TOG('rw-hins',S.emphi);
+}
+
+function updateAll(param){
+  readInputs(); updateKPIs(); colorMap(); renderChart('bwrap');
+  const vc=G('vchart'); if(vc&&vc.style.display!=='none') renderChart('bwrap-ov');
+  if(selId) showDetail(selId,true);
+  triggerInsight(param||lastP);
+}
+
+function setView(v){
+  const isMap=v==='map';
+  G('vb-map').classList.toggle('on',isMap); G('vb-rank').classList.toggle('on',!isMap);
+  G('vchart').style.display=isMap?'none':'flex';
+  if(!isMap) renderChart('bwrap-ov');
+}
+
+// Wire all inputs
+document.querySelectorAll('input[type=range]').forEach(el=>{
+  el.addEventListener('input',()=>{ lastP=el.id; updateAll(el.id); });
+});
+document.querySelectorAll('input[type=checkbox]').forEach(el=>{
+  el.addEventListener('change',()=>{ lastP=el.id; updateAll(el.id); });
+});
+
+// Initial render
+readInputs(); updateKPIs(); updateLegend(); renderChart('bwrap'); triggerInsight('init');
+
+</script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCgnEFS1cJoa9uxLI55Y264dLw7YzOR6U&callback=initMap" defer></script>
+</body>
+</html>
