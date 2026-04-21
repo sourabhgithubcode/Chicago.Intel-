@@ -1647,6 +1647,9 @@ document.querySelectorAll('input[type=checkbox]').forEach(el=>{
 readInputs(); updateKPIs(); updateLegend(); renderChart('bwrap'); triggerInsight('init');
 
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCgnEFS1cJoa9uxLI55Y264dLw7YzOR6U&callback=initMap" defer></script>
+<!-- Google Maps script removed — was hardcoding an API key.
+     If this V1 HTML is still in use, inject the key at runtime via a
+     server-side template or environment-variable-driven build step. -->
+<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY&callback=initMap" defer></script>
 </body>
 </html>
