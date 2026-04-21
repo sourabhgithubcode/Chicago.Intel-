@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: chicago-intel-frontend
+    runtime: static
+    buildCommand: pnpm install && pnpm build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
+        sync: false
+      - key: VITE_GOOGLE_MAPS_KEY
+        sync: false
+      - key: VITE_GOOGLE_PLACES_KEY
+        sync: false
+      - key: VITE_MAPBOX_TOKEN
+        sync: false
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+  - type: cron
+    name: chicago-intel-data-pipeline
+    runtime: python
+    schedule: "0 3 1 */3 *"  # 3am on 1st day of every 3rd month
+    buildCommand: pip install -r scripts/requirements.txt
+    startCommand: python scripts/run_all_fetchers.py
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: CENSUS_API_KEY
+        sync: false
+      - key: CHICAGO_DATA_TOKEN
+        sync: false
