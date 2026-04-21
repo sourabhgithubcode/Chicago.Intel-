@@ -1,9 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Fira+Code:wght@300;400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Design tokens from chicago-v4-final.html.
+   Kept as CSS vars because rgba + backdrop-filter combos
+   don't map cleanly to single Tailwind utilities. */
+:root {
+  --g1-bg: rgba(4, 10, 24, 0.9);
+  --g1-bd: rgba(255, 255, 255, 0.072);
+  --g1-blur: blur(28px) saturate(180%) brightness(1.05);
+
+  --g2-bg: rgba(14, 22, 45, 0.82);
+  --g2-bd: rgba(255, 255, 255, 0.16);
+  --g2-blur: blur(18px) saturate(160%);
+
+  --g3-bg: rgba(18, 28, 52, 0.88);
+  --g3-bd: rgba(255, 255, 255, 0.24);
+  --g3-blur: blur(12px) saturate(140%);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 html,
 body,
 #root {
   height: 100%;
+}
+
+body {
+  background: #050810;
+  color: #f5f8ff;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .glass-1 {
+    background: var(--g1-bg);
+    border: 1px solid var(--g1-bd);
+    backdrop-filter: var(--g1-blur);
+    -webkit-backdrop-filter: var(--g1-blur);
+    border-radius: 18px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4),
+      0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  }
+  .glass-2 {
+    background: var(--g2-bg);
+    border: 1px solid var(--g2-bd);
+    backdrop-filter: var(--g2-blur);
+    -webkit-backdrop-filter: var(--g2-blur);
+    border-radius: 11px;
+  }
+  .glass-3 {
+    background: var(--g3-bg);
+    border: 1px solid var(--g3-bd);
+    backdrop-filter: var(--g3-blur);
+    -webkit-backdrop-filter: var(--g3-blur);
+    border-radius: 7px;
+  }
+  .label-mono {
+    font-family: 'Fira Code', ui-monospace, monospace;
+    font-size: 12px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #f5f8ff;
+  }
+  .display {
+    font-family: 'Outfit', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
 }
