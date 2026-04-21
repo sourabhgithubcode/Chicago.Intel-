@@ -17,7 +17,7 @@ Let the user decide. Never tell someone where to live.
 ### Stack
 - **Frontend:** React + Vite + Tailwind CSS + Mapbox GL JS
 - **Backend:** Supabase (PostgreSQL + PostGIS)
-- **Hosting:** Vercel (frontend) + Supabase (free tier)
+- **Hosting:** Render (frontend static site + Python cron) + Supabase (free tier)
 - **APIs:** Google Places, Google Maps Geocoding, FEMA NFHL, CTA GTFS
 - **Analytics:** GoatCounter
 
