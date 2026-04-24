@@ -42,3 +42,14 @@ services:
         sync: false
       - key: CHICAGO_DATA_TOKEN
         sync: false
+      # Bronze layer — raw JSONL archive (Cloudflare R2)
+      - key: BRONZE_BACKEND
+        value: r2
+      - key: BRONZE_BUCKET
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false

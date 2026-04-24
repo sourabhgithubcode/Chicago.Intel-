@@ -31,15 +31,17 @@ from utils.health_check import run_health_checks
 from fetchers import fetch_acs, fetch_cpd, fetch_assessor, fetch_311
 from fetchers import fetch_cta, fetch_parks, fetch_treasurer
 
-SOURCES = {
-    "acs": fetch_acs.run,
-    "cpd": fetch_cpd.run,
-    "assessor": fetch_assessor.run,
-    "311": fetch_311.run,
-    "cta": fetch_cta.run,
-    "parks": fetch_parks.run,
-    "treasurer": fetch_treasurer.run,
+# Fetchers missing run() are acceptable — only the ones you request need it.
+_MODULES = {
+    "acs": fetch_acs,
+    "cpd": fetch_cpd,
+    "assessor": fetch_assessor,
+    "311": fetch_311,
+    "cta": fetch_cta,
+    "parks": fetch_parks,
+    "treasurer": fetch_treasurer,
 }
+SOURCES = {name: getattr(mod, "run", None) for name, mod in _MODULES.items()}
 
 log = structlog.get_logger()
 
@@ -55,9 +57,10 @@ def main():
     sources = list(SOURCES.keys()) if args.sources == "all" else args.sources.split(",")
 
     log.info("pipeline_start", sources=sources, dry_run=args.dry_run)
-    run_id = datetime.utcnow().isoformat()
+    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
 
-    client = get_admin_client()
+    # Defer Supabase client creation — --dry-run doesn't need it
+    client = None if args.dry_run else get_admin_client()
 
     # 1. Backup
     if not args.skip_backup and not args.dry_run:
@@ -74,8 +77,12 @@ def main():
         if source not in SOURCES:
             log.error("unknown_source", source=source)
             continue
+        if SOURCES[source] is None:
+            log.error("fetcher_not_implemented", source=source,
+                      hint="Module is missing a run(run_id: str) function.")
+            sys.exit(1)
         try:
-            fetched[source] = SOURCES[source]()
+            fetched[source] = SOURCES[source](run_id=run_id)
             log.info("fetch_complete", source=source,
                      rows=len(fetched[source]) if fetched[source] else 0)
         except Exception as e:
