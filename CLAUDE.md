@@ -248,6 +248,64 @@ Never load raw API responses directly to production tables.
 
 ---
 
+## No Bloat — pragmatic code only
+
+Only write new files, columns, helpers, views, or functions when something
+concrete needs them right now. Skip speculative scaffolding.
+
+- Columns / functions / views: add ONLY when the next code change uses them.
+  Don't add `schema_hash` (or similar) until a fetcher reads/writes it.
+- Migrations: one purpose per migration. No "while we're here" extras.
+- SQL comments: short. No multi-paragraph narrative blocks.
+- Helpers: write the simplest version. Three similar lines beats a premature
+  abstraction. Don't bundle six return values into a helper when one suffices.
+- Dictionary / docs can be thorough (they're specs). Code files cannot.
+- When in doubt: ship the smaller change. The next requirement pulls the rest
+  forward.
+
+### Pre-write self-check (mandatory)
+
+Before any `Write` or `Edit` of a code file (`.sql`, `.py`, `.js`, `.jsx`,
+`.ts`, `.tsx`), state the answers to these three questions in the response:
+
+1. **Caller check:** does each new symbol (column, function, view, file) have
+   a caller in this PR? Name it. If no, remove the symbol.
+2. **Purpose check:** is this one purpose, or am I bundling extras? If
+   extras, pull them out into a separate change.
+3. **Abstraction check:** could three similar lines do this without the
+   helper? If yes, inline it.
+
+If any answer is "no caller" / "bundling" / "premature helper", trim before
+saving. If unsure, ship the smaller version.
+
+Skip the self-check for docs (`.md`) and config (`.json`) — they have
+different rules.
+
+### Pre-response pushback check (mandatory for substantive answers)
+
+Before answering any non-trivial request (new code, new spec sections,
+architectural choices, scoping decisions), run this three-step check and
+**state any concerns visibly** in the response — silent agreement is a
+failure mode:
+
+1. **Memory check.** Skim recent memory entries (`memory/MEMORY.md`) for
+   rules that apply. If any apply, name them and follow them.
+2. **Premise check.** Is the user's premise correct? If they're heading
+   somewhere I think is wrong (over-engineering, breaks an established
+   rule, contradicts an earlier decision), say so *before* doing what
+   they asked. Don't slide into compliance just because they asked.
+3. **Compounding check.** What did this turn teach me that the next
+   conversation should know? If the answer is "nothing new" — fine, skip
+   it. If something — save a memory before ending the response.
+
+The user has explicitly said: "correct me when I'm wrong, we will go
+directionally right." Pushback isn't rude — silent compliance is.
+
+Skip this check for trivial requests (one-line edits, syntax fixes,
+quick lookups) — it's for substantive turns only.
+
+---
+
 ## Changelog
 
 See CHANGELOG.md for version history.
