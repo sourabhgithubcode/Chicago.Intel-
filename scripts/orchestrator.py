@@ -29,9 +29,12 @@ from utils.backup import backup_tables, restore_tables
 from utils.health_check import run_health_checks
 
 from fetchers import fetch_acs, fetch_cpd, fetch_assessor, fetch_311
-from fetchers import fetch_cta, fetch_parks, fetch_treasurer
+from fetchers import fetch_cta, fetch_parks, fetch_streets, fetch_treasurer
 
 # Fetchers missing run() are acceptable — only the ones you request need it.
+# Order matters for downstream reconcile: assessor must run before treasurer
+# (treasurer enriches buildings rows that assessor created); streets should
+# run before any reconcile step that wants to populate buildings.street_id.
 _MODULES = {
     "acs": fetch_acs,
     "cpd": fetch_cpd,
@@ -39,6 +42,7 @@ _MODULES = {
     "311": fetch_311,
     "cta": fetch_cta,
     "parks": fetch_parks,
+    "streets": fetch_streets,
     "treasurer": fetch_treasurer,
 }
 SOURCES = {name: getattr(mod, "run", None) for name, mod in _MODULES.items()}
