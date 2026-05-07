@@ -1,3 +1,9 @@
+import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
+
+// Hardcoded test coord (Willis Tower) — replaced by SearchBar/geocoder later.
+const TEST_LAT = 41.8789;
+const TEST_LNG = -87.6359;
+
 export default function App() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg">
@@ -12,29 +18,20 @@ export default function App() {
         }}
       />
 
-      <div className="relative z-10 flex min-h-screen items-center justify-center p-8">
-        <div className="glass-1 max-w-xl space-y-5 p-10 text-center">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-stretch gap-6 p-8">
+        <header className="glass-1 space-y-3 p-8 text-center">
           <div className="label-mono text-t2">chicago · intel · v2</div>
-
           <h1 className="display text-5xl text-t0">Chicago.Intel</h1>
-
           <p className="text-t1 leading-relaxed">
             Neighborhood intelligence for Chicago renters. Show the data, show
             the source, show the confidence. Never tell anyone where to live.
           </p>
-
-          <div className="flex justify-center gap-2 pt-2">
-            <span className="glass-3 label-mono px-3 py-1.5 text-lime">
-              scaffold
-            </span>
-            <span className="glass-3 label-mono px-3 py-1.5 text-cyan">
-              supabase
-            </span>
-            <span className="glass-3 label-mono px-3 py-1.5 text-violet">
-              mapbox
-            </span>
+          <div className="label-mono text-t3 pt-2">
+            test address: Willis Tower ({TEST_LAT}, {TEST_LNG})
           </div>
-        </div>
+        </header>
+
+        <NearestCTAStop lat={TEST_LAT} lng={TEST_LNG} />
       </div>
     </main>
   );
