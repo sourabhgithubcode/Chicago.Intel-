@@ -1615,6 +1615,7 @@ document.querySelectorAll('input[type=checkbox]').forEach(el=>{
 readInputs(); updateKPIs(); updateLegend(); renderChart('bwrap'); triggerInsight('init');
 
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCgnEFS1cJoa9uxLI55Y264dLw7YzOR6U&callback=initMap" defer></script>
+<!-- __GOOGLE_MAPS_KEY__ substituted at deploy time by render.yaml buildCommand from $GOOGLE_MAPS_KEY env var -->
+<script src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_KEY__&callback=initMap" defer></script>
 </body>
 </html>
