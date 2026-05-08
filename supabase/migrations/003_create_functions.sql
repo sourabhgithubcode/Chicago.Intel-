@@ -1,4 +1,13 @@
--- Supabase RPC functions called by the frontend
+-- Supabase RPC functions called by the frontend.
+-- DROPs are explicit (not OR REPLACE alone) because Postgres rejects
+-- OR REPLACE when the return type changes — re-running this migration
+-- against a drifted schema would otherwise fail with 42P13.
+
+DROP FUNCTION IF EXISTS safety_at_point(double precision, double precision) CASCADE;
+DROP FUNCTION IF EXISTS nearest_cta(double precision, double precision) CASCADE;
+DROP FUNCTION IF EXISTS nearest_park(double precision, double precision) CASCADE;
+DROP FUNCTION IF EXISTS find_building_at(double precision, double precision) CASCADE;
+DROP FUNCTION IF EXISTS complaints_at_address(text) CASCADE;
 
 -- Safety score for a given coordinate (0.25mi radius)
 CREATE OR REPLACE FUNCTION safety_at_point(lat FLOAT, lng FLOAT)
