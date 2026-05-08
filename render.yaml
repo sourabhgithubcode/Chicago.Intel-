@@ -2,13 +2,12 @@ services:
   - type: web
     name: chicago-intel-frontend
     runtime: static
-    # Substitute __GOOGLE_MAPS_KEY__ placeholder in the HTML with the real
-    # key from the GOOGLE_MAPS_KEY env var, then verify the substitution
-    # actually happened (fail the build if the placeholder is still present).
-    buildCommand: sed -i "s|__GOOGLE_MAPS_KEY__|$GOOGLE_MAPS_KEY|g" public/index.html && ! grep -q "__GOOGLE_MAPS_KEY__" public/index.html
-    staticPublishPath: ./public
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
     envVars:
-      - key: GOOGLE_MAPS_KEY
+      - key: VITE_SUPABASE_URL
+        sync: false
+      - key: VITE_SUPABASE_ANON_KEY
         sync: false
     headers:
       - path: /*
