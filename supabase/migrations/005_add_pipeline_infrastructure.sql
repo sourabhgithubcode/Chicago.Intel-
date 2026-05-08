@@ -38,6 +38,11 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_status
   ON pipeline_runs(status);
 
 -- ─── Extend find_building_at with purchase fields ──────
+-- DROP first: OR REPLACE alone fails when the return type changes
+-- (Postgres 42P13). 003 created this with a narrower return shape; 005
+-- widens it with purchase_year + purchase_price.
+DROP FUNCTION IF EXISTS find_building_at(double precision, double precision) CASCADE;
+
 CREATE OR REPLACE FUNCTION find_building_at(lat FLOAT, lng FLOAT)
 RETURNS TABLE(
   pin TEXT, address TEXT, owner TEXT, year_built INT,
