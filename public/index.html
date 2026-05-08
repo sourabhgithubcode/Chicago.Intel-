@@ -659,10 +659,6 @@ button.gm-ui-hover-effect { display:none!important; }
   <div class="csec">
     <div class="csec-head">🏠 Rent &amp; Housing</div>
     <div class="sr">
-      <div class="sl-row"><span class="sl-lbl">Rent override (0 = ACS data)</span><span class="sl-val" id="dv-rent">ACS</span></div>
-      <input type="range" id="sl-rent" min="0" max="5000" step="50" value="0">
-    </div>
-    <div class="sr">
       <div class="sl-row"><span class="sl-lbl">Debt / loan repayment / mo</span><span class="sl-val" id="dv-loan">$0</span></div>
       <input type="range" id="sl-loan" min="0" max="2000" step="25" value="0">
     </div>
@@ -672,24 +668,7 @@ button.gm-ui-hover-effect { display:none!important; }
     </div>
   </div>
 
-  <div class="csec">
-    <div class="csec-head">💡 Utilities</div>
-    <div class="tog-row"><span class="tog-lbl">Peoples Gas — separate bill</span><label class="sw"><input type="checkbox" id="sw-gas" checked><div class="sw-t"></div></label></div>
-    <div id="rw-gas" class="sr">
-      <div class="sl-row"><span class="sl-lbl">Gas / mo</span><span class="sl-val" id="dv-gas">$65</span></div>
-      <input type="range" id="sl-gas" min="15" max="250" step="5" value="65">
-    </div>
-    <div class="tog-row"><span class="tog-lbl">ComEd — separate bill</span><label class="sw"><input type="checkbox" id="sw-elec" checked><div class="sw-t"></div></label></div>
-    <div id="rw-elec" class="sr">
-      <div class="sl-row"><span class="sl-lbl">Electricity / mo</span><span class="sl-val" id="dv-elec">$60</span></div>
-      <input type="range" id="sl-elec" min="15" max="220" step="5" value="60">
-    </div>
-    <div class="tog-row"><span class="tog-lbl">Internet — separate bill</span><label class="sw"><input type="checkbox" id="sw-wifi"><div class="sw-t"></div></label></div>
-    <div id="rw-wifi" class="sr" style="display:none">
-      <div class="sl-row"><span class="sl-lbl">Internet / mo</span><span class="sl-val" id="dv-wifi">$55</span></div>
-      <input type="range" id="sl-wifi" min="25" max="130" step="5" value="55">
-    </div>
-  </div>
+
 
   <div class="csec">
     <div class="csec-head">🍽️ Food &amp; Dining</div>
@@ -1216,8 +1195,7 @@ const fmt     = n => '$'+Math.abs(n).toLocaleString();
 
 // State
 let S = {
-  salary:55000,target:500,rentOvr:0,loan:0,rins:15,
-  gasOn:true,gas:65,elecOn:true,elec:60,wifiOn:false,wifi:55,
+  salary:55000,target:500,loan:0,rins:15,
   groc:388,dine:0,emphi:true,hprem:150,oop:50,
   car:false,carpay:350,carins:130,cargas:130,cta:105,
   subs:50,misc:100
@@ -1237,13 +1215,9 @@ function nonRent(){
   let c = S.groc+S.dine+S.oop+S.subs+S.misc+S.rins+S.loan;
   if(S.emphi) c += S.hprem;
   c += S.car ? S.carpay+S.carins+S.cargas : S.cta;
-  if(S.gasOn)  c += S.gas;
-  if(S.elecOn) c += S.elec;
-  if(S.wifiOn) c += S.wifi;
   return Math.round(c);
 }
-function effRent(r){ return S.rentOvr>0 ? S.rentOvr : r; }
-function surplus(r){ return takeHome(S.salary) - effRent(r) - nonRent(); }
+function surplus(r){ return takeHome(S.salary) - r - nonRent(); }
 function zi(s){ const d=s-S.target; return d>=300?0:d>=0?1:d>=-300?2:d>=-700?3:4; }
 
 // ═══════════════════════════════════════════════════════
@@ -1320,8 +1294,8 @@ window.initMap = function() {
     const se=document.getElementById('tip-surp');
     se.style.color=col; se.textContent=(s>=0?'+':'')+fmt(s)+'/mo';
     document.getElementById('tip-accent').style.background=col;
-    document.getElementById('tip-rent').textContent  = '$'+effRent(r).toLocaleString()+'/mo';
-    document.getElementById('tip-total').textContent = '$'+(effRent(r)+nonRent()).toLocaleString()+'/mo';
+    document.getElementById('tip-rent').textContent  = '$'+r.toLocaleString()+'/mo';
+    document.getElementById('tip-total').textContent = '$'+(r+nonRent()).toLocaleString()+'/mo';
     if(st){
       const se2=document.getElementById('tip-safe');
       se2.textContent=st[0].toFixed(1)+'/10'; se2.style.color=safeCol(st[0]);
@@ -1401,7 +1375,7 @@ function setMode(m,btn){
 function showDetail(id,locked){
   const r=RENT[id],st=STATS[id],vb=VIBE[id],wk=WALK[id];
   if(!r) return;
-  const TH=takeHome(S.salary), R=effRent(r), s=surplus(r), NR=nonRent(), gap=s-S.target;
+  const TH=takeHome(S.salary), R=r, s=surplus(r), NR=nonRent(), gap=s-S.target;
   const col=ZC[zi(s)], nm=NAMES[id]||'CCA #'+id;
 
   // Finance
@@ -1520,7 +1494,7 @@ function renderChart(wrapId){
   const wrap=document.getElementById(wrapId); if(!wrap) return; wrap.innerHTML='';
   const all=Object.keys(RENT).map(id=>({id:+id,n:NAMES[+id]||'',r:RENT[+id],s:surplus(RENT[+id]),st:STATS[+id],wk:WALK[+id]}));
   if(sortMode==='s')      all.sort((a,b)=>b.s-a.s);
-  else if(sortMode==='r') all.sort((a,b)=>effRent(a.r)-effRent(b.r));
+  else if(sortMode==='r') all.sort((a,b)=>a.r-b.r);
   else if(sortMode==='sf')all.sort((a,b)=>(b.st?b.st[0]:0)-(a.st?a.st[0]:0));
   else if(sortMode==='w') all.sort((a,b)=>(b.wk?b.wk[0]:0)-(a.wk?a.wk[0]:0));
   else all.sort((a,b)=>a.n.localeCompare(b.n));
@@ -1557,11 +1531,11 @@ function genInsight(p){
   const best=all.reduce((a,b)=>a.s>b.s?a:b);
   const safViable=viable.filter(x=>x.st&&x.st[0]>=6.5);
   const walkViable=viable.filter(x=>x.wk&&x.wk[0]>=7);
-  const cheapSafe=all.filter(x=>x.st&&x.st[0]>=6.5).sort((a,b)=>effRent(a.r)-effRent(b.r))[0];
+  const cheapSafe=all.filter(x=>x.st&&x.st[0]>=6.5).sort((a,b)=>a.r-b.r)[0];
 
   if(p==='init') return `👋 $${S.salary.toLocaleString()}/yr → $${TH.toLocaleString()}/mo take-home. Click any block on the map to explore finances, safety, vibe, and walkability. Try 🚶‍♂️ Walk and 🏃‍♂️ Run map modes to see outdoor-friendly areas.`;
   if(p==='sl-sal'){
-    if(S.salary<45000) return `⚠️ At $${S.salary.toLocaleString()}/yr, only ${viable.length} areas meet your $${S.target} goal. Cheapest safe pick: ${cheapSafe?.n||'Garfield Ridge'} (~$${cheapSafe?effRent(cheapSafe.r):997}/mo).`;
+    if(S.salary<45000) return `⚠️ At $${S.salary.toLocaleString()}/yr, only ${viable.length} areas meet your $${S.target} goal. Cheapest safe pick: ${cheapSafe?.n||'Garfield Ridge'} (~$${cheapSafe?cheapSafe.r:997}/mo).`;
     if(S.salary>=90000) return `✅ $${S.salary.toLocaleString()}/yr puts you in ${viable.length}/77 neighborhoods. ${walkViable.length} also score 7+ walkability. Best: ${best.n} at +$${best.s.toLocaleString()}/mo.`;
     return `📊 $${TH.toLocaleString()}/mo take-home → ${viable.length} neighborhoods hit your goal. ${safViable.length} score 6.5+ safety, ${walkViable.length} score 7+ walkability.`;
   }
@@ -1569,7 +1543,6 @@ function genInsight(p){
     if(viable.length===0) return `🚨 $${S.target}/mo goal unachievable at this salary in all 77 neighborhoods. Closest: ${best.n} at ${best.s>=0?'+':''}$${best.s}/mo.`;
     return `🎯 $${S.target}/mo reachable in ${viable.length}/77 areas. ${walkViable.length} of those score 7+ walkability — great for car-free living.`;
   }
-  if(p==='sl-rent') return S.rentOvr===0 ? `📍 Using ACS data. 2025 market rents run 10–18% higher in Logan Square, Pilsen, Bridgeport. Use override.` : `🏠 At $${S.rentOvr.toLocaleString()}/mo rent, ${viable.length} neighborhoods work for you.`;
   if(p==='sw-car'||p.startsWith('sl-car')){
     const cc=S.car?S.carpay+S.carins+S.cargas:0;
     return S.car ? `🚗 Car costs $${cc}/mo vs CTA $${S.cta}/mo — $${cc-S.cta} premium. ${viable.length} neighborhoods viable.` : `🚇 Car-free → ${viable.length} viable areas. ${walkViable.length} score 7+ walkability — lean into Lincoln Park, Lake View, Near North.`;
@@ -1599,10 +1572,7 @@ const TOG = (id,show) => { const e=G(id); if(e) e.style.display=show?'':'none'; 
 
 function readInputs(){
   S.salary=+G('sl-sal').value; S.target=+G('sl-tgt').value;
-  S.rentOvr=+G('sl-rent').value; S.loan=+G('sl-loan').value; S.rins=+G('sl-rins').value;
-  S.gasOn=G('sw-gas').checked;   S.gas=+G('sl-gas').value;
-  S.elecOn=G('sw-elec').checked; S.elec=+G('sl-elec').value;
-  S.wifiOn=G('sw-wifi').checked; S.wifi=+G('sl-wifi').value;
+  S.loan=+G('sl-loan').value; S.rins=+G('sl-rins').value;
   S.groc=+G('sl-groc').value; S.dine=+G('sl-dine').value;
   S.emphi=G('sw-emphi').checked; S.hprem=+G('sl-hprem').value; S.oop=+G('sl-oop').value;
   S.car=G('sw-car').checked;
@@ -1610,14 +1580,12 @@ function readInputs(){
   S.cta=+G('sl-cta').value; S.subs=+G('sl-subs').value; S.misc=+G('sl-misc').value;
 
   SV('dv-sal','$'+S.salary.toLocaleString()); SV('dv-tgt','$'+S.target);
-  SV('dv-rent',S.rentOvr>0?'$'+S.rentOvr+'/mo':'ACS'); SV('dv-loan','$'+S.loan); SV('dv-rins','$'+S.rins+'/mo');
-  SV('dv-gas','$'+S.gas+'/mo'); SV('dv-elec','$'+S.elec+'/mo'); SV('dv-wifi','$'+S.wifi+'/mo');
+  SV('dv-loan','$'+S.loan); SV('dv-rins','$'+S.rins+'/mo');
   SV('dv-groc','$'+S.groc+'/mo'); SV('dv-dine','$'+S.dine+'/mo');
   SV('dv-hprem','$'+S.hprem+'/mo'); SV('dv-oop','$'+S.oop+'/mo');
   SV('dv-carpay','$'+S.carpay+'/mo'); SV('dv-carins','$'+S.carins+'/mo'); SV('dv-cargas','$'+S.cargas+'/mo');
   SV('dv-cta','$'+S.cta+'/mo'); SV('dv-subs','$'+S.subs+'/mo'); SV('dv-misc','$'+S.misc+'/mo');
 
-  TOG('rw-gas',S.gasOn); TOG('rw-elec',S.elecOn); TOG('rw-wifi',S.wifiOn);
   TOG('rw-car',S.car); TOG('rw-cta',!S.car); TOG('rw-hins',S.emphi);
 }
 
@@ -1647,9 +1615,6 @@ document.querySelectorAll('input[type=checkbox]').forEach(el=>{
 readInputs(); updateKPIs(); updateLegend(); renderChart('bwrap'); triggerInsight('init');
 
 </script>
-<!-- Google Maps script removed — was hardcoding an API key.
-     If this V1 HTML is still in use, inject the key at runtime via a
-     server-side template or environment-variable-driven build step. -->
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_KEY&callback=initMap" defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBCgnEFS1cJoa9uxLI55Y264dLw7YzOR6U&callback=initMap" defer></script>
 </body>
 </html>

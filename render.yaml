@@ -2,19 +2,7 @@ services:
   - type: web
     name: chicago-intel-frontend
     runtime: static
-    buildCommand: pnpm install && pnpm build
-    staticPublishPath: ./dist
-    envVars:
-      - key: VITE_SUPABASE_URL
-        sync: false
-      - key: VITE_SUPABASE_ANON_KEY
-        sync: false
-      - key: VITE_GOOGLE_MAPS_KEY
-        sync: false
-      - key: VITE_GOOGLE_PLACES_KEY
-        sync: false
-      - key: VITE_MAPBOX_TOKEN
-        sync: false
+    staticPublishPath: ./public
     headers:
       - path: /*
         name: X-Frame-Options
