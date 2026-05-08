@@ -20,6 +20,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# Load .env from repo root before anything reads os.environ.
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 import structlog
