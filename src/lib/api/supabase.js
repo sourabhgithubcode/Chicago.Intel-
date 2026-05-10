@@ -79,6 +79,27 @@ export async function getBuildingAt(lat, lng) {
   };
 }
 
+/**
+ * Latest successful pipeline_runs.completed_at for a source.
+ * Backed by the per-source pipeline_runs row (migrations 005 + 011).
+ * Returns null when no successful run exists yet (fresh deploy).
+ *
+ * @returns {Promise<string|null>} ISO timestamp or null
+ */
+export async function getLastSyncedAt(source) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('pipeline_runs')
+    .select('completed_at')
+    .eq('source', source)
+    .eq('status', 'success')
+    .order('completed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new DatabaseError({ cause: error, meta: { source } });
+  return data?.completed_at ?? null;
+}
+
 export async function getNearestCTAStop(lat, lng) {
   const rows = await rpc('nearest_cta', { lat, lng });
   if (!rows || rows.length === 0) return null;

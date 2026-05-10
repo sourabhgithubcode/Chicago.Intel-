@@ -9,6 +9,8 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: VITE_GOOGLE_MAPS_KEY
+        sync: false
     headers:
       - path: /*
         name: X-Frame-Options
@@ -21,24 +23,30 @@ services:
         source: /*
         destination: /index.html
 
+  # ─── Data pipeline cron jobs ───────────────────────────────────────────
+  # Per-source schedules keyed to how often each source actually publishes.
+  # All crons run with --bronze-only while the data-load freeze is in place
+  # (memory: project_data_load_freeze.md). When per-source transformer
+  # cleaning is validated, drop --bronze-only here to enable silver upserts.
+
+  # CPD crime + 311 violations — daily (sources update continuously)
   - type: cron
-    name: chicago-intel-data-pipeline
+    name: chicago-intel-pipeline-daily
     runtime: python
-    schedule: "0 3 1 */3 *"  # 3am on 1st day of every 3rd month
+    schedule: "0 9 * * *"  # 4am Central daily
     buildCommand: pip install -r scripts/requirements.txt
-    startCommand: python scripts/run_all_fetchers.py
-    envVars:
+    startCommand: python scripts/orchestrator.py --sources cpd,311 --bronze-only --skip-backup
+    envVars: &cron_env
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
-      - key: CENSUS_API_KEY
-        sync: false
       - key: CHICAGO_DATA_TOKEN
         sync: false
-      # Bronze layer — raw JSONL archive (Cloudflare R2)
-      - key: BRONZE_BACKEND
-        value: r2
+      - key: COOK_COUNTY_TOKEN
+        sync: false
+      - key: CENSUS_API_KEY
+        sync: false
       - key: BRONZE_BUCKET
         sync: false
       - key: R2_ENDPOINT
@@ -47,3 +55,21 @@ services:
         sync: false
       - key: R2_SECRET_ACCESS_KEY
         sync: false
+
+  # Cook County Assessor — monthly (annual snapshots + sales trickle)
+  - type: cron
+    name: chicago-intel-pipeline-monthly
+    runtime: python
+    schedule: "0 9 1 * *"  # 4am Central, 1st of every month
+    buildCommand: pip install -r scripts/requirements.txt
+    startCommand: python scripts/orchestrator.py --sources assessor --bronze-only --skip-backup
+    envVars: *cron_env
+
+  # CTA stops, parks, streets, ACS — quarterly (these sources rarely change)
+  - type: cron
+    name: chicago-intel-pipeline-quarterly
+    runtime: python
+    schedule: "0 9 1 */3 *"  # 4am Central, 1st of Jan/Apr/Jul/Oct
+    buildCommand: pip install -r scripts/requirements.txt
+    startCommand: python scripts/orchestrator.py --sources cta,parks,streets,acs --bronze-only --skip-backup
+    envVars: *cron_env

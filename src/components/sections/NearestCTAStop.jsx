@@ -3,7 +3,7 @@
 //   value → source → confidence → caveats.
 
 import { useEffect, useState } from 'react';
-import { getNearestCTAStop } from '../../lib/api/supabase.js';
+import { getNearestCTAStop, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
 const formatDistance = (meters) => {
@@ -13,18 +13,28 @@ const formatDistance = (meters) => {
   return `${miles.toFixed(2)} mi`;
 };
 
+function relTime(iso) {
+  if (!iso) return 'never synced';
+  const m = (Date.now() - new Date(iso).getTime()) / 60000;
+  if (m < 60) return `synced ${Math.max(1, Math.round(m))}m ago`;
+  if (m < 60 * 24) return `synced ${Math.round(m / 60)}h ago`;
+  return `synced ${Math.round(m / 60 / 24)}d ago`;
+}
+
 export default function NearestCTAStop({ lat, lng }) {
   const [state, setState] = useState({ status: 'loading' });
+  const [syncedAt, setSyncedAt] = useState(null);
 
-  // Re-mount on coord change via key in the parent if we ever want a
-  // synchronous "loading" pulse on coord changes; for now the stale
-  // value briefly persists, which is fine while the test coord is fixed.
   useEffect(() => {
     if (lat == null || lng == null) return undefined;
     let cancelled = false;
-    getNearestCTAStop(lat, lng)
-      .then((data) => {
+    Promise.all([
+      getNearestCTAStop(lat, lng),
+      getLastSyncedAt('cta').catch(() => null),
+    ])
+      .then(([data, synced]) => {
         if (cancelled) return;
+        setSyncedAt(synced);
         setState(data ? { status: 'ok', data } : { status: 'empty' });
       })
       .catch((err) => {
@@ -40,13 +50,16 @@ export default function NearestCTAStop({ lat, lng }) {
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
         <h3 className="display text-xl text-t0">Nearest CTA stop</h3>
-        <ConfidenceTag
-          score={9}
-          source={{
-            label: 'CTA GTFS',
-            url: 'https://www.transitchicago.com/developers/gtfs.aspx',
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
+          <ConfidenceTag
+            score={9}
+            source={{
+              label: 'CTA GTFS',
+              url: 'https://www.transitchicago.com/developers/gtfs.aspx',
+            }}
+          />
+        </div>
       </header>
 
       {state.status === 'loading' && (

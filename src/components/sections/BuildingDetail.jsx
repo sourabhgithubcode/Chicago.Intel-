@@ -4,11 +4,19 @@
 // absent until their pipelines land.
 
 import { useEffect, useState } from 'react';
-import { getBuildingAt } from '../../lib/api/supabase.js';
+import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
 const fmtPrice = (n) =>
   n == null ? null : `$${n.toLocaleString('en-US')}`;
+
+function relTime(iso) {
+  if (!iso) return 'never synced';
+  const m = (Date.now() - new Date(iso).getTime()) / 60000;
+  if (m < 60) return `synced ${Math.max(1, Math.round(m))}m ago`;
+  if (m < 60 * 24) return `synced ${Math.round(m / 60)}h ago`;
+  return `synced ${Math.round(m / 60 / 24)}d ago`;
+}
 
 function Row({ label, value, caveat }) {
   if (value == null || value === '') return null;
@@ -27,14 +35,19 @@ function Row({ label, value, caveat }) {
 
 export default function BuildingDetail({ lat, lng }) {
   const [state, setState] = useState({ status: 'loading' });
+  const [syncedAt, setSyncedAt] = useState(null);
 
   useEffect(() => {
     if (lat == null || lng == null) return undefined;
     let cancelled = false;
     setState({ status: 'loading' });
-    getBuildingAt(lat, lng)
-      .then((data) => {
+    Promise.all([
+      getBuildingAt(lat, lng),
+      getLastSyncedAt('assessor').catch(() => null),
+    ])
+      .then(([data, synced]) => {
         if (cancelled) return;
+        setSyncedAt(synced);
         setState(data ? { status: 'ok', data } : { status: 'empty' });
       })
       .catch((err) => {
@@ -50,13 +63,16 @@ export default function BuildingDetail({ lat, lng }) {
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
         <h3 className="display text-xl text-t0">Building</h3>
-        <ConfidenceTag
-          score={9}
-          source={{
-            label: 'Cook County Assessor',
-            url: 'https://datacatalog.cookcountyil.gov/',
-          }}
-        />
+        <div className="flex items-center gap-2">
+          <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
+          <ConfidenceTag
+            score={9}
+            source={{
+              label: 'Cook County Assessor',
+              url: 'https://datacatalog.cookcountyil.gov/',
+            }}
+          />
+        </div>
       </header>
 
       {state.status === 'loading' && <p className="text-t2">Loading…</p>}
