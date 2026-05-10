@@ -85,6 +85,7 @@ def to_silver(
         silver.append({
             "pin": pin,
             "address": address,
+            "address_norm": " ".join(address.upper().split()),
             "owner": addr_row.get("owner_address_name"),
             "year_built": year_built,
             "purchase_year": purchase_year,
