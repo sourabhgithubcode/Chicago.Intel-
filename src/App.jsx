@@ -1,10 +1,18 @@
+import { useState } from 'react';
+import BuildingDetail from './components/sections/BuildingDetail.jsx';
 import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
+import SearchBar from './components/sections/SearchBar.jsx';
 
-// Hardcoded test coord (Willis Tower) — replaced by SearchBar/geocoder later.
-const TEST_LAT = 41.8789;
-const TEST_LNG = -87.6359;
+// Default coord: Willis Tower. Used until the user runs their first search.
+const DEFAULT = {
+  lat: 41.8789,
+  lng: -87.6359,
+  address: '233 S Wacker Dr (default)',
+};
 
 export default function App() {
+  const [target, setTarget] = useState(DEFAULT);
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg">
       <div
@@ -26,12 +34,16 @@ export default function App() {
             Neighborhood intelligence for Chicago renters. Show the data, show
             the source, show the confidence. Never tell anyone where to live.
           </p>
-          <div className="label-mono text-t3 pt-2">
-            test address: Willis Tower ({TEST_LAT}, {TEST_LNG})
-          </div>
         </header>
 
-        <NearestCTAStop lat={TEST_LAT} lng={TEST_LNG} />
+        <SearchBar onResult={setTarget} />
+
+        <div className="label-mono text-t3 text-center text-xs">
+          {target.address}
+        </div>
+
+        <BuildingDetail lat={target.lat} lng={target.lng} />
+        <NearestCTAStop lat={target.lat} lng={target.lng} />
       </div>
     </main>
   );

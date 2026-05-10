@@ -41,6 +41,44 @@ export async function rpc(name, params = {}) {
  *   confidence: number,
  * } | null>}
  */
+/**
+ * Building parcel data nearest a coordinate (within 100m).
+ * Backed by RPC `find_building_at(lat, lng)` (003/005). Returns assessor-
+ * sourced fields only — `tax_current`/`tax_annual` are null until the
+ * treasurer connector lands; 311-derived counters and `flood_zone` come
+ * from other pipelines and are not surfaced here yet.
+ *
+ * @returns {Promise<{
+ *   pin: string, address: string, owner: string|null,
+ *   year_built: number|null,
+ *   purchase_year: number|null, purchase_price: number|null,
+ *   school_elem: string|null, distance_m: number,
+ *   source: { id: string, label: string, url: string },
+ *   confidence: number,
+ * } | null>}
+ */
+export async function getBuildingAt(lat, lng) {
+  const rows = await rpc('find_building_at', { lat, lng });
+  if (!rows || rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    pin: r.pin,
+    address: r.address,
+    owner: r.owner,
+    year_built: r.year_built,
+    purchase_year: r.purchase_year,
+    purchase_price: r.purchase_price,
+    school_elem: r.school_elem,
+    distance_m: r.distance_m,
+    source: {
+      id: 'cook-county-assessor',
+      label: 'Cook County Assessor',
+      url: 'https://datacatalog.cookcountyil.gov/',
+    },
+    confidence: 9,
+  };
+}
+
 export async function getNearestCTAStop(lat, lng) {
   const rows = await rpc('nearest_cta', { lat, lng });
   if (!rows || rows.length === 0) return null;
