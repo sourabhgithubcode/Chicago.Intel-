@@ -28,7 +28,7 @@ PAGE_SIZE = 10_000  # Socrata default cap per request
 
 def fetch_all() -> list[dict]:
     """Page through the centerlines dataset until exhausted."""
-    client = Socrata(DOMAIN, TOKEN)
+    client = Socrata(DOMAIN, TOKEN, timeout=60)
     rows: list[dict] = []
     offset = 0
     while True:
