@@ -12,10 +12,11 @@ Integrity guards (DATA_DICTIONARY §15) run before each upsert:
   - assert_failure_rate      → fails if too many bronze rows dropped in transform
   - assert_row_count_drift   → fails if silver count drops sharply vs last run
 """
+from __future__ import annotations
 
 import structlog
 
-from scripts.utils.validation import (
+from utils.validation import (
     acquire_source_lock,
     assert_failure_rate,
     assert_row_count_drift,

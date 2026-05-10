@@ -17,7 +17,7 @@ def run_health_checks(client) -> bool:
     ok = True
     for table, min_count in EXPECTED_MIN_COUNTS.items():
         try:
-            result = client.table(table).select("id", count="exact").limit(1).execute()
+            result = client.table(table).select("*", count="exact").limit(1).execute()
             actual = result.count or 0
             if actual < min_count:
                 log.error("row_count_too_low", table=table,
