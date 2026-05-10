@@ -33,7 +33,7 @@ def fetch_all() -> list[dict]:
     while True:
         chunk = client.get(
             DATASET,
-            select="id,date,primary_type,description,latitude,longitude,iucr",
+            select="id,date,primary_type,latitude,longitude,iucr",
             where=f"latitude IS NOT NULL AND date >= '{DATE_FLOOR}'",
             limit=PAGE_SIZE,
             offset=offset,

@@ -4,10 +4,13 @@ Source: data.cityofchicago.org/resource/ijzp-q8t2 (Crimes 2001-present).
 Confidence: 7/10 — official CPD reports, but unfounded/reclassified incidents
 remain in the feed; we don't filter them.
 
-Silver schema (migration 001):
+Silver schema (migrations 001 + 014):
     cpd_incidents(id BIGINT PK, iucr TEXT, type TEXT CHECK IN
-                  ('violent','property','other'), description TEXT,
+                  ('violent','property','other'),
                   date DATE NOT NULL, location GEOMETRY(POINT, 4326))
+
+`description` was dropped in 014 — IUCR is the canonical 4-char code, and
+Chicago publishes the IUCR→description lookup separately.
 
 The `type` CHECK constraint forces every row into violent/property/other.
 The IUCR_TYPE map below covers the FBI Part 1 violent + property codes; any
@@ -63,7 +66,6 @@ def to_silver(raw_rows: Iterable[dict]) -> list[dict]:
             "id": row_id,
             "iucr": iucr,
             "type": _classify(iucr),
-            "description": r.get("description"),
             "date": date,
             "location": f"SRID=4326;POINT({lng} {lat})",
         })

@@ -59,6 +59,8 @@ def main():
     parser.add_argument("--sources", default="all")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--skip-backup", action="store_true")
+    parser.add_argument("--bronze-only", action="store_true",
+                        help="Stop after fetch+bronze write — skip silver upsert and gold refresh.")
     args = parser.parse_args()
 
     setup_logging()
@@ -67,11 +69,11 @@ def main():
     log.info("pipeline_start", sources=sources, dry_run=args.dry_run)
     run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
 
-    # Defer Supabase client creation — --dry-run doesn't need it
-    client = None if args.dry_run else get_admin_client()
+    # Defer Supabase client creation — --dry-run / --bronze-only don't need it
+    client = None if (args.dry_run or args.bronze_only) else get_admin_client()
 
     # 1. Backup
-    if not args.skip_backup and not args.dry_run:
+    if not args.skip_backup and not args.dry_run and not args.bronze_only:
         try:
             backup_path = backup_tables(client, run_id)
             log.info("backup_complete", path=backup_path)
@@ -108,6 +110,11 @@ def main():
 
     if args.dry_run:
         log.info("dry_run_complete")
+        return
+
+    if args.bronze_only:
+        log.info("bronze_only_complete", run_id=run_id,
+                 sources={s: len(rs) for s, rs in fetched.items()})
         return
 
     # 4. Load — delegated to loaders
