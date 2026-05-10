@@ -32,6 +32,10 @@ data/backups/
 *.jsonl.gz
 !data/**/*.example.csv
 
+# Local tooling state
+.claude/
+.codeviz/
+
 # Editors
 .vscode/*
 !.vscode/extensions.json
