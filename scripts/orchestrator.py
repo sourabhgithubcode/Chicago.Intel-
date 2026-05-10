@@ -99,14 +99,15 @@ def main():
             log.error("fetch_failed", source=source, error=str(e))
             sys.exit(1)
 
-    # 3. Validate
-    errors = []
-    for source, rows in fetched.items():
-        if not rows:
-            errors.append(f"{source}: no rows returned")
-    if errors:
-        log.error("validation_failed", errors=errors)
-        sys.exit(1)
+    # 3. Validate — gate on silver-shape only when we're loading silver.
+    if not args.bronze_only:
+        errors = []
+        for source, rows in fetched.items():
+            if not rows:
+                errors.append(f"{source}: no rows returned")
+        if errors:
+            log.error("validation_failed", errors=errors)
+            sys.exit(1)
 
     if args.dry_run:
         log.info("dry_run_complete")
