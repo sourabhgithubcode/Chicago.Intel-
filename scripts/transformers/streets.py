@@ -1,6 +1,6 @@
-"""Chicago street centerlines — bronze rows → silver rows for streets table.
+"""Chicago street centerlines — bronze GeoJSON features → silver rows.
 
-Source: Chicago Data Portal Socrata 6imu-meau (free, no key required).
+Source: gisapps.cityofchicago.org/.../ExternalApps/Centerline/MapServer/0
 Confidence: 9/10 — official city centerline data.
 
 Silver schema (from supabase/migrations/007_create_streets.sql):
@@ -12,14 +12,23 @@ Silver schema (from supabase/migrations/007_create_streets.sql):
 `cca_id` and `tract_id` are populated by reconcile (`assign_streets_to_polygons()`),
 not by this transformer.
 
-Field reference for 6imu-meau (verified against the public dataset schema):
-  street_nam, pre_dir, suf_dir, street_typ — name parts
-  l_f_add, l_t_add, r_f_add, r_t_add        — address range (left/right side)
-  the_geom                                  — GeoJSON LineString or MultiLineString
-  status                                    — "OPEN" / closed / proposed
+Source field reference (ArcGIS MapServer/0 properties, UPPERCASE):
+  STREET_NAME, PRE_DIR, SUF_DIR, STREET_TYPE       — name parts
+  L_F_ADD, L_T_ADD, R_F_ADD, R_T_ADD               — address range (left/right)
+  STATUS                                           — N=Normal (open), P=Private,
+                                                     C=Constructed, UC=Under
+                                                     Construction, V=Vacated,
+                                                     UR=Unbuilt right-of-way
+  OBJECTID                                         — stable per-row id
+  GeoJSON geometry: LineString or MultiLineString
 """
+from __future__ import annotations
 
 from typing import Iterable, Optional
+
+from shapely.geometry import shape
+from shapely.geometry.linestring import LineString
+from shapely.geometry.multilinestring import MultiLineString
 
 # Chicago bounding box — drops segments outside the city.
 CHI_NORTH, CHI_SOUTH = 42.023, 41.644
@@ -41,35 +50,35 @@ _SUFFIX_ABBR = {
     "HIGHWAY": "HWY",
 }
 
+# "N" = Normal/operating (~55.5K of 56.4K). Drop UC/V/UR/C (under construction,
+# vacated, unbuilt right-of-way, "C"). Keep P (private but real, e.g. gated
+# driveways and named private ways) — only 657 segments and they show up on
+# real addresses.
+_OPEN_STATUSES = {"N", "P"}
+
 
 def _abbr_suffix(s: str) -> str:
-    """Normalize a street suffix and return title case (e.g. 'AVENUE' → 'Ave').
-
-    Display convention is title case ('N Lincoln Ave'), not the all-caps form
-    used on signage. The abbreviation map keys stay uppercase because that's
-    how Socrata emits the source.
-    """
+    """Normalize a street suffix and return title case (e.g. 'AVENUE' → 'Ave')."""
     if not s:
         return ""
     upper = s.strip().upper()
     abbr = _SUFFIX_ABBR.get(upper, upper)
-    # Title-case the result so 'AVE' → 'Ave', 'ST' → 'St'.
     return abbr.title()
 
 
-def _build_name(r: dict) -> str:
-    """Combine pre_dir + street_nam + street_typ + suf_dir into a display name."""
+def _build_name(p: dict) -> str:
+    """Combine PRE_DIR + STREET_NAME + STREET_TYPE + SUF_DIR into a display name."""
     parts: list[str] = []
-    pre = (r.get("pre_dir") or "").strip().upper()
+    pre = (p.get("PRE_DIR") or "").strip().upper()
     if pre:
         parts.append(pre)
-    nam = (r.get("street_nam") or "").strip()
+    nam = (p.get("STREET_NAME") or "").strip()
     if nam:
         parts.append(nam.title())
-    typ = _abbr_suffix(r.get("street_typ") or "")
+    typ = _abbr_suffix(p.get("STREET_TYPE") or "")
     if typ:
         parts.append(typ)
-    suf = (r.get("suf_dir") or "").strip().upper()
+    suf = (p.get("SUF_DIR") or "").strip().upper()
     if suf:
         parts.append(suf)
     return " ".join(parts)
@@ -81,7 +90,7 @@ def _normalize_name(name: str) -> str:
 
 
 def _to_int(v) -> Optional[int]:
-    """Cast to int, tolerating None and non-numeric strings."""
+    """Cast to int, tolerating None and non-numeric values."""
     if v is None or v == "":
         return None
     try:
@@ -90,99 +99,79 @@ def _to_int(v) -> Optional[int]:
         return None
 
 
-def _addr_range(r: dict) -> tuple[Optional[int], Optional[int]]:
-    """from_addr = min(l_f_add, r_f_add); to_addr = max(l_t_add, r_t_add)."""
-    lf = _to_int(r.get("l_f_add"))
-    rf = _to_int(r.get("r_f_add"))
-    lt = _to_int(r.get("l_t_add"))
-    rt = _to_int(r.get("r_t_add"))
-
+def _addr_range(p: dict) -> tuple[Optional[int], Optional[int]]:
+    """from_addr = min(L_F_ADD, R_F_ADD); to_addr = max(L_T_ADD, R_T_ADD)."""
+    lf = _to_int(p.get("L_F_ADD"))
+    rf = _to_int(p.get("R_F_ADD"))
+    lt = _to_int(p.get("L_T_ADD"))
+    rt = _to_int(p.get("R_T_ADD"))
     fr = [v for v in (lf, rf) if v is not None]
     to = [v for v in (lt, rt) if v is not None]
     return (min(fr) if fr else None, max(to) if to else None)
 
 
-def _vertex_in_chicago(vertex: list) -> bool:
-    if not vertex or len(vertex) < 2:
-        return False
-    lng, lat = vertex[0], vertex[1]
-    return CHI_SOUTH <= lat <= CHI_NORTH and CHI_WEST <= lng <= CHI_EAST
-
-
-def _part_in_chicago(part: list) -> bool:
-    """A segment counts as in-Chicago if at least one vertex is inside the bbox."""
-    return any(_vertex_in_chicago(v) for v in part)
-
-
-def _format_part(part: list) -> str:
-    """Format a list of [lng, lat] vertices as PostGIS LINESTRING text."""
-    return "(" + ", ".join(f"{v[0]} {v[1]}" for v in part) + ")"
-
-
-def _to_wkt(geom: dict) -> Optional[str]:
-    """Convert Socrata GeoJSON to PostGIS MULTILINESTRING WKT.
-
-    Socrata returns LineString or MultiLineString. A LineString is wrapped
-    into a single-part MultiLineString to match the schema.
-    """
-    if not isinstance(geom, dict):
-        return None
-    geom_type = geom.get("type")
-    coords = geom.get("coordinates")
-    if not coords:
-        return None
-
-    if geom_type == "LineString":
-        if not _part_in_chicago(coords):
-            return None
-        return f"SRID=4326;MULTILINESTRING({_format_part(coords)})"
-
-    if geom_type == "MultiLineString":
-        valid = [p for p in coords if _part_in_chicago(p)]
-        if not valid:
-            return None
-        parts = ", ".join(_format_part(p) for p in valid)
-        return f"SRID=4326;MULTILINESTRING({parts})"
-
-    return None
-
-
-def _stable_id(r: dict) -> Optional[str]:
-    """Prefer the dataset's own street_id; fall back to Socrata row id (`:id`)."""
-    for key in ("street_id", "objectid", ":id"):
-        v = r.get(key)
+def _stable_id(feat: dict, props: dict) -> Optional[str]:
+    """Prefer the feature's top-level `id` (=OBJECTID); fall back to props."""
+    for v in (feat.get("id"), props.get("OBJECTID"), props.get("TRANS_ID")):
         if v not in (None, ""):
             return str(v)
     return None
 
 
-def to_silver(raw_rows: Iterable[dict]) -> list[dict]:
-    """Map raw Socrata street centerline rows to streets silver rows."""
+def _in_chicago(geom) -> bool:
+    """True if any vertex of the (multi)linestring is inside the Chicago bbox."""
+    if isinstance(geom, LineString):
+        coords_iter = [geom.coords]
+    elif isinstance(geom, MultiLineString):
+        coords_iter = [g.coords for g in geom.geoms]
+    else:
+        return False
+    for coords in coords_iter:
+        for x, y in coords:
+            if CHI_WEST <= x <= CHI_EAST and CHI_SOUTH <= y <= CHI_NORTH:
+                return True
+    return False
+
+
+def to_silver(features: Iterable[dict]) -> list[dict]:
+    """Map raw ArcGIS GeoJSON street centerline features to streets silver rows."""
     silver: list[dict] = []
     seen: set[str] = set()
 
-    for r in raw_rows:
-        # Filter to OPEN streets when status field is present.
-        # If status missing, accept the row (some snapshots omit the column).
-        status = r.get("status")
-        if status:
+    for feat in features:
+        props = feat.get("properties") or {}
+
+        status = props.get("STATUS")
+        if status is not None:
             s = str(status).strip().upper()
-            if s and s != "OPEN":
+            # blank/whitespace status is observed in the source — treat as
+            # unknown and drop. Only accept the documented "open" codes.
+            if s not in _OPEN_STATUSES:
                 continue
 
-        sid = _stable_id(r)
+        sid = _stable_id(feat, props)
         if not sid or sid in seen:
             continue
 
-        wkt = _to_wkt(r.get("the_geom"))
-        if not wkt:
+        geom_json = feat.get("geometry")
+        if not geom_json:
+            continue
+        try:
+            geom = shape(geom_json)
+        except Exception:
+            continue
+        if isinstance(geom, LineString):
+            geom = MultiLineString([geom])
+        if not isinstance(geom, MultiLineString) or geom.is_empty:
+            continue
+        if not _in_chicago(geom):
             continue
 
-        name = _build_name(r)
+        name = _build_name(props)
         if not name:
             continue
 
-        from_addr, to_addr = _addr_range(r)
+        from_addr, to_addr = _addr_range(props)
 
         seen.add(sid)
         silver.append({
@@ -191,7 +180,7 @@ def to_silver(raw_rows: Iterable[dict]) -> list[dict]:
             "name_norm": _normalize_name(name),
             "from_addr": from_addr,
             "to_addr": to_addr,
-            "geometry": wkt,
+            "geometry": f"SRID=4326;{geom.wkt}",
             # cca_id / tract_id populated by reconcile, not here
         })
 
