@@ -101,3 +101,5 @@ services:
         sync: false
       - key: RENTCAST_API_KEY
         sync: false
+      - key: HOWLOUD_API_KEY
+        sync: false

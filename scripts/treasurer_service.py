@@ -471,6 +471,65 @@ def amenities():
     return jsonify({"category": category, "places": rows, "cached": False})
 
 
+# HowLoud soundscore by lat/lng — paid per call. 1yr cache (noise is static).
+HOWLOUD_URL = "https://api.howloud.com/v2/score"
+HOWLOUD_TTL_SECONDS = 365 * 24 * 60 * 60
+
+
+@app.get("/noise")
+def noise():
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return jsonify({"error": "lat and lng required"}), 400
+    api_key = os.environ.get("HOWLOUD_API_KEY")
+    if not api_key:
+        return jsonify({"error": "HOWLOUD_API_KEY not configured"}), 503
+
+    coord_key = f"{lat:.4f},{lng:.4f}"
+    client = get_admin_client()
+    cached = (client.table("noise_cache")
+              .select("coord_key,lat,lng,score,components,fetched_at")
+              .eq("coord_key", coord_key).limit(1).execute().data or [])
+    if cached:
+        row = cached[0]
+        age_s = (datetime.now(timezone.utc) - _parse_ts(row["fetched_at"])).total_seconds()
+        if age_s < HOWLOUD_TTL_SECONDS:
+            return jsonify({**row, "cached": True})
+
+    try:
+        r = requests.get(HOWLOUD_URL,
+                         headers={"x-api-key": api_key},
+                         params={"lat": lat, "lng": lng}, timeout=20)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        return jsonify({"error": "howloud lookup failed", "detail": str(e)}), 500
+
+    results = data.get("result") or []
+    if not results:
+        return jsonify({"error": "howloud returned no result"}), 502
+    res = results[0] if isinstance(results, list) else results
+    score = res.get("score")
+
+    row = {
+        "coord_key": coord_key,
+        "lat": lat,
+        "lng": lng,
+        "score": score,
+        "components": res,  # keeps airports/traffic/local + their *text fields
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "row_hash": hashlib.md5(f"{coord_key}|{score}".encode()).hexdigest(),
+    }
+    try:
+        client.table("noise_cache").upsert([row]).execute()
+    except Exception as e:
+        return jsonify({"error": "cache upsert failed", "detail": str(e)}), 500
+
+    return jsonify({**row, "cached": False})
+
+
 def _price_level_int(s):
     return {
         "PRICE_LEVEL_FREE": 0,
