@@ -1,9 +1,11 @@
 // API — Cook County Treasurer per-PIN tax lookup.
-// Backed by the `treasurer-lookup` Edge Function (live scrape + 30d cache).
-// Confidence 9/10 — the source is the official Treasurer site; the only
-// caveat is that it's scraped, so brief upstream outages are possible.
+// Backed by the Flask service on Render (was a Supabase Edge Function — Deno's
+// strict TLS rejected CCT's misconfigured cert chain). Confidence 9/10 — the
+// source is the official Treasurer site; brief upstream outages possible.
+//
+// Env: VITE_TREASURER_API_URL (e.g. https://chicago-intel-treasurer.onrender.com)
+//      VITE_SUPABASE_ANON_KEY (used as a soft auth token to deter abuse)
 
-import { supabase } from './supabase.js';
 import { DatabaseError } from '../errors/index.js';
 
 const SOURCE = {
@@ -11,6 +13,9 @@ const SOURCE = {
   label: 'Cook County Treasurer',
   url: 'https://www.cookcountytreasurer.com/',
 };
+
+const API = import.meta.env.VITE_TREASURER_API_URL;
+const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * Live Treasurer lookup for a 14-digit PIN (no dashes).
@@ -29,7 +34,7 @@ const SOURCE = {
  */
 export async function getTreasurerData(pin) {
   if (!pin) return null;
-  if (!supabase) throw new DatabaseError({ meta: { reason: 'no-client' } });
+  if (!API) throw new DatabaseError({ meta: { reason: 'no-treasurer-url' } });
 
   const clean = String(pin).replace(/\D/g, '');
   if (!/^\d{14}$/.test(clean)) {
@@ -38,15 +43,29 @@ export async function getTreasurerData(pin) {
     });
   }
 
-  const { data, error } = await supabase.functions.invoke('treasurer-lookup', {
-    body: { pin: clean },
-  });
-  if (error) {
-    throw new DatabaseError({ cause: error, meta: { pin: clean } });
+  let res;
+  try {
+    res = await fetch(`${API}/treasurer-lookup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${ANON}`,
+      },
+      body: JSON.stringify({ pin: clean }),
+    });
+  } catch (cause) {
+    throw new DatabaseError({ cause, meta: { pin: clean, reason: 'network' } });
   }
-  if (!data || data.error) {
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
     throw new DatabaseError({
-      meta: { pin: clean, detail: data?.error ?? 'no data' },
+      meta: { pin: clean, status: res.status, detail: detail.slice(0, 200) },
+    });
+  }
+  const data = await res.json();
+  if (data.error) {
+    throw new DatabaseError({
+      meta: { pin: clean, detail: data.detail ?? data.error },
     });
   }
 

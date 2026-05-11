@@ -73,3 +73,22 @@ services:
     buildCommand: pip install -r scripts/requirements.txt
     startCommand: python scripts/orchestrator.py --sources cta,parks,streets,acs --bronze-only --skip-backup
     envVars: *cron_env
+
+  # ─── Treasurer per-PIN scrape service ──────────────────────────────────
+  # Lives outside the Edge Function path because Deno's strict rustls rejects
+  # CCT's misconfigured cert chain (browsers + Python's certifi accept it via
+  # AIA chasing). Free tier — first request after 15min idle takes ~30s
+  # cold-start; warm requests sub-second. Aggressive 30d cache softens this.
+  - type: web
+    name: chicago-intel-treasurer
+    runtime: python
+    plan: free
+    buildCommand: pip install -r scripts/requirements.txt
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --chdir scripts treasurer_service:app
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
