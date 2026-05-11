@@ -92,3 +92,12 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
+      # Live-API connector keys — set in Render Dashboard (sync: false hides
+      # the value from the YAML). Missing keys cause the corresponding route
+      # to return 503; other routes keep working.
+      - key: GOOGLE_PLACES_KEY
+        sync: false
+      - key: AIRNOW_API_KEY
+        sync: false
+      - key: RENTCAST_API_KEY
+        sync: false

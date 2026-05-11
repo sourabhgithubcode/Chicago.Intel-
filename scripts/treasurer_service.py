@@ -20,6 +20,7 @@ Flow (matches the working POC + the old edge function):
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 import sys
@@ -51,6 +52,14 @@ def _extract_hidden(html: str, name: str) -> str:
     if not m:
         raise RuntimeError(f"hidden field not found: {name}")
     return m.group(1)
+
+
+def _parse_ts(s: str) -> datetime:
+    # Postgres returns timestamps like '2026-05-11T04:49:01.006850+00:00'.
+    # Python 3.9 fromisoformat is strict about microsecond digits — strip
+    # the fractional part since second-level resolution is enough for TTL.
+    s = re.sub(r"\.\d+", "", s.replace("Z", "+00:00"))
+    return datetime.fromisoformat(s)
 
 
 def _strip_tags(html: str) -> str:
@@ -145,7 +154,7 @@ def lookup():
     if cached:
         row = cached[0]
         age_s = (datetime.now(timezone.utc) -
-                 datetime.fromisoformat(row["fetched_at"].replace("Z", "+00:00"))).total_seconds()
+                 _parse_ts(row["fetched_at"])).total_seconds()
         if age_s < TTL_SECONDS:
             return jsonify({**row, "cached": True})
 
@@ -203,7 +212,7 @@ def flood_zone():
     if cached:
         row = cached[0]
         age_s = (datetime.now(timezone.utc) -
-                 datetime.fromisoformat(row["fetched_at"].replace("Z", "+00:00"))).total_seconds()
+                 _parse_ts(row["fetched_at"])).total_seconds()
         if age_s < FEMA_TTL_SECONDS:
             return jsonify({**row, "cached": True})
 
@@ -246,6 +255,230 @@ def flood_zone():
         "fetched_at": row["fetched_at"],
         "cached": False,
     })
+
+
+# AirNow current AQI by ZIP code — free, keyless signup. 1h cache.
+AIRNOW_URL = "https://www.airnowapi.org/aq/observation/zipCode/current/"
+AIRNOW_TTL_SECONDS = 60 * 60
+
+
+@app.get("/aqi")
+def aqi():
+    zip_code = (request.args.get("zip") or "").strip()
+    if not re.fullmatch(r"\d{5}", zip_code):
+        return jsonify({"error": "zip must be 5 digits"}), 400
+    api_key = os.environ.get("AIRNOW_API_KEY")
+    if not api_key:
+        return jsonify({"error": "AIRNOW_API_KEY not configured"}), 503
+
+    client = get_admin_client()
+    cached = (client.table("aqi_cache")
+              .select("zip,aqi,primary_pollutant,category,source_observed_at,fetched_at")
+              .eq("zip", zip_code).limit(1).execute().data or [])
+    if cached:
+        row = cached[0]
+        age_s = (datetime.now(timezone.utc) -
+                 _parse_ts(row["fetched_at"])).total_seconds()
+        if age_s < AIRNOW_TTL_SECONDS:
+            return jsonify({**row, "cached": True})
+
+    try:
+        r = requests.get(AIRNOW_URL, params={
+            "format": "application/json",
+            "zipCode": zip_code,
+            "API_KEY": api_key,
+        }, timeout=20)
+        r.raise_for_status()
+        observations = r.json() or []
+    except Exception as e:
+        return jsonify({"error": "airnow lookup failed", "detail": str(e)}), 500
+
+    if not observations:
+        return jsonify({"error": "no observations for that zip"}), 404
+
+    # Pick the worst AQI across reported parameters (PM2.5, O3, etc.)
+    worst = max(observations, key=lambda o: o.get("AQI") or 0)
+    observed = f"{worst.get('DateObserved','').strip()} {worst.get('HourObserved','')}:00"
+    row = {
+        "zip": zip_code,
+        "aqi": worst.get("AQI"),
+        "primary_pollutant": worst.get("ParameterName"),
+        "category": (worst.get("Category") or {}).get("Name"),
+        "source_observed_at": observed,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "row_hash": hashlib.md5(
+            f"{zip_code}|{worst.get('AQI')}|{observed}".encode()
+        ).hexdigest(),
+    }
+    try:
+        client.table("aqi_cache").upsert([row]).execute()
+    except Exception as e:
+        return jsonify({"error": "cache upsert failed", "detail": str(e)}), 500
+
+    return jsonify({**row, "cached": False})
+
+
+# RentCast rent estimate per PIN — paid per call. Aggressive 30d cache.
+RENTCAST_URL = "https://api.rentcast.io/v1/avm/rent/long-term"
+RENTCAST_TTL_SECONDS = 30 * 24 * 60 * 60
+
+
+@app.get("/rent")
+def rent():
+    pin = re.sub(r"\D", "", request.args.get("pin", ""))
+    if not re.fullmatch(r"\d{14}", pin):
+        return jsonify({"error": "pin must be 14 digits"}), 400
+    try:
+        bedrooms = int(request.args.get("bedrooms", "2"))
+    except ValueError:
+        return jsonify({"error": "bedrooms must be int"}), 400
+    if bedrooms < 0 or bedrooms > 10:
+        return jsonify({"error": "bedrooms 0-10"}), 400
+    address = (request.args.get("address") or "").strip()
+    if not address:
+        return jsonify({"error": "address required"}), 400
+    api_key = os.environ.get("RENTCAST_API_KEY")
+    if not api_key:
+        return jsonify({"error": "RENTCAST_API_KEY not configured"}), 503
+
+    client = get_admin_client()
+    cached = (client.table("rent_cache")
+              .select("pin,bedrooms,rent,rent_low,rent_high,fetched_at")
+              .eq("pin", pin).eq("bedrooms", bedrooms).limit(1).execute().data or [])
+    if cached:
+        row = cached[0]
+        age_s = (datetime.now(timezone.utc) -
+                 _parse_ts(row["fetched_at"])).total_seconds()
+        if age_s < RENTCAST_TTL_SECONDS:
+            return jsonify({**row, "cached": True})
+
+    try:
+        r = requests.get(RENTCAST_URL, headers={"X-Api-Key": api_key}, params={
+            "address": address,
+            "bedrooms": bedrooms,
+        }, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        return jsonify({"error": "rentcast lookup failed", "detail": str(e)}), 500
+
+    row = {
+        "pin": pin,
+        "bedrooms": bedrooms,
+        "rent": data.get("rent"),
+        "rent_low": data.get("rentRangeLow"),
+        "rent_high": data.get("rentRangeHigh"),
+        "comparables": data.get("comparables"),
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        client.table("rent_cache").upsert([row]).execute()
+    except Exception as e:
+        return jsonify({"error": "cache upsert failed", "detail": str(e)}), 500
+
+    return jsonify({k: v for k, v in row.items() if k != "comparables"} | {"cached": False})
+
+
+# Google Places (New) Nearby Search — $200/mo free credit. 30d cache.
+GPLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
+GPLACES_TTL_SECONDS = 30 * 24 * 60 * 60
+
+_PLACE_TYPE_MAP = {
+    "grocery":   "grocery_store",
+    "gym":       "gym",
+    "pharmacy":  "pharmacy",
+    "coffee":    "cafe",
+    "restaurant":"restaurant",
+    "park":      "park",
+    "bank":      "bank",
+    "laundry":   "laundry",
+}
+
+
+@app.get("/amenities")
+def amenities():
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return jsonify({"error": "lat and lng required"}), 400
+    category = (request.args.get("category") or "").strip().lower()
+    place_type = _PLACE_TYPE_MAP.get(category)
+    if not place_type:
+        return jsonify({"error": f"unknown category; allowed: {sorted(_PLACE_TYPE_MAP)}"}), 400
+    api_key = os.environ.get("GOOGLE_PLACES_KEY")
+    if not api_key:
+        return jsonify({"error": "GOOGLE_PLACES_KEY not configured"}), 503
+
+    addr_key = f"{lat:.4f},{lng:.4f}"
+    client = get_admin_client()
+    cached = (client.table("amenities_cache")
+              .select("name,distance_m,price_level,place_id,cached_at,expires_at")
+              .eq("address_key", addr_key).eq("category", category)
+              .execute().data or [])
+    if cached:
+        first = cached[0]
+        age_s = (datetime.now(timezone.utc) -
+                 _parse_ts(first["cached_at"])).total_seconds()
+        if age_s < GPLACES_TTL_SECONDS:
+            return jsonify({"category": category, "places": cached, "cached": True})
+
+    try:
+        r = requests.post(GPLACES_URL, json={
+            "includedTypes": [place_type],
+            "locationRestriction": {"circle": {
+                "center": {"latitude": lat, "longitude": lng},
+                "radius": 402,
+            }},
+            "maxResultCount": 10,
+        }, headers={
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.displayName,places.priceLevel,places.location,places.id",
+        }, timeout=20)
+        r.raise_for_status()
+        places = (r.json().get("places") or [])
+    except Exception as e:
+        return jsonify({"error": "google places lookup failed", "detail": str(e)}), 500
+
+    now = datetime.now(timezone.utc).isoformat()
+    expires = (datetime.now(timezone.utc) +
+               __import__("datetime").timedelta(seconds=GPLACES_TTL_SECONDS)).isoformat()
+    rows = []
+    for p in places:
+        ploc = p.get("location") or {}
+        plat, plng = ploc.get("latitude"), ploc.get("longitude")
+        dist = None
+        if plat is not None and plng is not None:
+            # crude planar distance — close enough at this scale (≤402m)
+            dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+        rows.append({
+            "address_key": addr_key,
+            "category": category,
+            "name": (p.get("displayName") or {}).get("text"),
+            "distance_m": dist,
+            "price_level": _price_level_int(p.get("priceLevel")),
+            "place_id": p.get("id"),
+            "cached_at": now,
+            "expires_at": expires,
+        })
+    if rows:
+        try:
+            client.table("amenities_cache").insert(rows).execute()
+        except Exception as e:
+            return jsonify({"error": "cache insert failed", "detail": str(e)}), 500
+
+    return jsonify({"category": category, "places": rows, "cached": False})
+
+
+def _price_level_int(s):
+    return {
+        "PRICE_LEVEL_FREE": 0,
+        "PRICE_LEVEL_INEXPENSIVE": 1,
+        "PRICE_LEVEL_MODERATE": 2,
+        "PRICE_LEVEL_EXPENSIVE": 3,
+        "PRICE_LEVEL_VERY_EXPENSIVE": 4,
+    }.get(s)
 
 
 # US Census Bureau geocoder — proxied because Census doesn't return CORS
