@@ -1,34 +1,52 @@
-// Google Maps Geocoding — address string → {lat, lng, formatted_address}.
-// Env: VITE_GOOGLE_MAPS_KEY (must be domain-restricted in Google Cloud).
+// US Census Bureau Geocoder — free, no key, US-only, accurate for Chicago.
+// https://geocoding.geo.census.gov/
 // Caller: SearchBar.jsx.
+//
+// Returns null on no match. Throws on transport/HTTP errors.
 
-const KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+const ENDPOINT =
+  'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
 
-const CHICAGO_BOUNDS = '41.644,-87.940|42.023,-87.524';
+const CHI_BBOX = {
+  west: -87.940, east: -87.524,
+  south: 41.644, north: 42.023,
+};
+
+function inChicagoBbox(x, y) {
+  return (
+    x >= CHI_BBOX.west && x <= CHI_BBOX.east &&
+    y >= CHI_BBOX.south && y <= CHI_BBOX.north
+  );
+}
 
 export async function geocodeAddress(query) {
-  if (!KEY) throw new Error('VITE_GOOGLE_MAPS_KEY not set');
   if (!query || !query.trim()) return null;
 
+  // Append "Chicago IL" if the user didn't include it — the Census geocoder
+  // is nationwide and would otherwise rank matches by other factors.
+  const q = /chicago/i.test(query) ? query : `${query}, Chicago, IL`;
+
   const params = new URLSearchParams({
-    address: query,
-    bounds: CHICAGO_BOUNDS,
-    components: 'locality:Chicago|administrative_area:IL|country:US',
-    key: KEY,
+    address: q,
+    benchmark: 'Public_AR_Current',
+    format: 'json',
   });
-  const res = await fetch(
-    `https://maps.googleapis.com/maps/api/geocode/json?${params}`
-  );
+  const res = await fetch(`${ENDPOINT}?${params}`);
   if (!res.ok) throw new Error(`Geocode HTTP ${res.status}`);
   const body = await res.json();
-  if (body.status === 'ZERO_RESULTS') return null;
-  if (body.status !== 'OK') {
-    throw new Error(`Geocode ${body.status}: ${body.error_message ?? ''}`);
-  }
-  const top = body.results[0];
+  const matches = body?.result?.addressMatches ?? [];
+  if (matches.length === 0) return null;
+
+  // Prefer a match inside Chicago's bbox if one exists (the geocoder
+  // sometimes returns a same-named address in a suburb first).
+  const chiMatch = matches.find((m) =>
+    inChicagoBbox(m.coordinates?.x, m.coordinates?.y)
+  );
+  const top = chiMatch ?? matches[0];
+
   return {
-    lat: top.geometry.location.lat,
-    lng: top.geometry.location.lng,
-    formatted_address: top.formatted_address,
+    lat: top.coordinates.y,
+    lng: top.coordinates.x,
+    formatted_address: top.matchedAddress,
   };
 }

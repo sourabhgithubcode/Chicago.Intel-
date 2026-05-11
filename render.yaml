@@ -9,7 +9,7 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
-      - key: VITE_GOOGLE_MAPS_KEY
+      - key: VITE_TREASURER_API_URL
         sync: false
     headers:
       - path: /*
