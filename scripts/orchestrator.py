@@ -69,8 +69,11 @@ def main():
     log.info("pipeline_start", sources=sources, dry_run=args.dry_run)
     run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
 
-    # Defer Supabase client creation — --dry-run / --bronze-only don't need it
-    client = None if (args.dry_run or args.bronze_only) else get_admin_client()
+    # Defer Supabase client creation — --dry-run skips it entirely. --bronze-only
+    # still needs it: we write a pipeline_runs row so the frontend's freshness UI
+    # (getLastSyncedAt) sees a real "synced X ago" timestamp even when silver
+    # upsert + load_all are skipped.
+    client = None if args.dry_run else get_admin_client()
 
     # 1. Backup
     if not args.skip_backup and not args.dry_run and not args.bronze_only:
@@ -114,6 +117,29 @@ def main():
         return
 
     if args.bronze_only:
+        # Write one pipeline_runs row per source so the frontend's
+        # getLastSyncedAt(source) returns a real timestamp. Failure here is a
+        # warning, not fatal — the bronze archive is the load-bearing artifact.
+        completed_at = datetime.utcnow().isoformat() + "Z"
+        started_at = datetime.strptime(run_id, "%Y%m%dT%H%M%S").isoformat() + "Z"
+        for source, rows in fetched.items():
+            rows_in = len(rows) if rows else 0
+            try:
+                client.table("pipeline_runs").insert([{
+                    "run_id": f"{run_id}_{source}",
+                    "source": source,
+                    "status": "success",
+                    "mode": "bronze_only",
+                    "rows_in": rows_in,
+                    "rows_upserted": 0,
+                    "started_at": started_at,
+                    "completed_at": completed_at,
+                    "sources": [source],
+                    "row_counts": {source: rows_in},
+                }]).execute()
+            except Exception as e:
+                log.warning("pipeline_runs_write_failed", source=source, error=str(e))
+
         log.info("bronze_only_complete", run_id=run_id,
                  sources={s: len(rs) for s, rs in fetched.items()})
         return
