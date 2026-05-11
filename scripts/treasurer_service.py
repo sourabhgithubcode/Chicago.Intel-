@@ -36,8 +36,6 @@ from utils.supabase_admin import get_admin_client
 app = Flask(__name__)
 CORS(app)  # public PINs, public site — permissive CORS is fine
 
-ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
-
 BASE = "https://www.cookcountytreasurer.com"
 SEARCH_URL = f"{BASE}/taxbillhistorysearch.aspx"
 SUBMIT_URL = f"{BASE}/setsearchparameters.aspx"
@@ -130,10 +128,9 @@ def _scrape(pin: str) -> dict:
 
 @app.post("/treasurer-lookup")
 def lookup():
-    auth = request.headers.get("Authorization", "")
-    if auth != f"Bearer {ANON_KEY}":
-        return jsonify({"error": "unauthorized"}), 401
-
+    # No auth — the anon key is public (compiled into the frontend bundle), so
+    # a bearer check would be theatrical. Abuse protection is the 30d cache +
+    # Render's free-tier rate limits.
     body = request.get_json(silent=True) or {}
     pin = re.sub(r"\D", "", str(body.get("pin", "")))
     if not re.fullmatch(r"\d{14}", pin):

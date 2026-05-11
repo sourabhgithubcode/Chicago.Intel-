@@ -4,7 +4,6 @@
 // source is the official Treasurer site; brief upstream outages possible.
 //
 // Env: VITE_TREASURER_API_URL (e.g. https://chicago-intel-treasurer.onrender.com)
-//      VITE_SUPABASE_ANON_KEY (used as a soft auth token to deter abuse)
 
 import { DatabaseError } from '../errors/index.js';
 
@@ -15,7 +14,6 @@ const SOURCE = {
 };
 
 const API = import.meta.env.VITE_TREASURER_API_URL;
-const ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 /**
  * Live Treasurer lookup for a 14-digit PIN (no dashes).
@@ -47,10 +45,7 @@ export async function getTreasurerData(pin) {
   try {
     res = await fetch(`${API}/treasurer-lookup`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${ANON}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pin: clean }),
     });
   } catch (cause) {
