@@ -175,3 +175,25 @@ def lookup():
 @app.get("/healthz")
 def health():
     return jsonify({"ok": True})
+
+
+# US Census Bureau geocoder — proxied because Census doesn't return CORS
+# headers, so browsers can't call it directly. Same endpoint, same response
+# shape as Census; we just re-emit with this service's CORS.
+@app.get("/geocode")
+def geocode():
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"error": "missing q"}), 400
+    if not re.search(r"chicago", q, re.I):
+        q = f"{q}, Chicago, IL"
+    try:
+        r = requests.get(
+            "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress",
+            params={"address": q, "benchmark": "Public_AR_Current", "format": "json"},
+            timeout=15,
+        )
+        r.raise_for_status()
+        return jsonify(r.json())
+    except Exception as e:
+        return jsonify({"error": "geocode failed", "detail": str(e)}), 500

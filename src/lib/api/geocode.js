@@ -1,11 +1,9 @@
-// US Census Bureau Geocoder — free, no key, US-only, accurate for Chicago.
-// https://geocoding.geo.census.gov/
+// US Census Bureau Geocoder, proxied through our Render Flask service.
+// Census doesn't return CORS headers, so browsers can't call it directly —
+// the proxy re-emits the same response with CORS allowed.
 // Caller: SearchBar.jsx.
-//
-// Returns null on no match. Throws on transport/HTTP errors.
 
-const ENDPOINT =
-  'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress';
+const API = import.meta.env.VITE_TREASURER_API_URL;
 
 const CHI_BBOX = {
   west: -87.940, east: -87.524,
@@ -21,24 +19,14 @@ function inChicagoBbox(x, y) {
 
 export async function geocodeAddress(query) {
   if (!query || !query.trim()) return null;
+  if (!API) throw new Error('VITE_TREASURER_API_URL not set');
 
-  // Append "Chicago IL" if the user didn't include it — the Census geocoder
-  // is nationwide and would otherwise rank matches by other factors.
-  const q = /chicago/i.test(query) ? query : `${query}, Chicago, IL`;
-
-  const params = new URLSearchParams({
-    address: q,
-    benchmark: 'Public_AR_Current',
-    format: 'json',
-  });
-  const res = await fetch(`${ENDPOINT}?${params}`);
+  const res = await fetch(`${API}/geocode?q=${encodeURIComponent(query)}`);
   if (!res.ok) throw new Error(`Geocode HTTP ${res.status}`);
   const body = await res.json();
   const matches = body?.result?.addressMatches ?? [];
   if (matches.length === 0) return null;
 
-  // Prefer a match inside Chicago's bbox if one exists (the geocoder
-  // sometimes returns a same-named address in a suburb first).
   const chiMatch = matches.find((m) =>
     inChicagoBbox(m.coordinates?.x, m.coordinates?.y)
   );
