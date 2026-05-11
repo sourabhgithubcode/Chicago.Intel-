@@ -33,7 +33,7 @@ function Row({ label, value, caveat }) {
   );
 }
 
-export default function BuildingDetail({ lat, lng }) {
+export default function BuildingDetail({ lat, lng, onLoaded }) {
   const [state, setState] = useState({ status: 'loading' });
   const [syncedAt, setSyncedAt] = useState(null);
 
@@ -49,15 +49,17 @@ export default function BuildingDetail({ lat, lng }) {
         if (cancelled) return;
         setSyncedAt(synced);
         setState(data ? { status: 'ok', data } : { status: 'empty' });
+        if (onLoaded) onLoaded(data ?? null);
       })
       .catch((err) => {
         if (cancelled) return;
         setState({ status: 'error', err });
+        if (onLoaded) onLoaded(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [lat, lng]);
+  }, [lat, lng, onLoaded]);
 
   return (
     <section className="glass-2 space-y-3 p-5">

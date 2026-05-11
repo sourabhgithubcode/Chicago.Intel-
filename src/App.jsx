@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
 import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
 import SearchBar from './components/sections/SearchBar.jsx';
+import TaxBill from './components/sections/TaxBill.jsx';
 
 // Default coord: Willis Tower. Used until the user runs their first search.
 const DEFAULT = {
@@ -12,6 +13,11 @@ const DEFAULT = {
 
 export default function App() {
   const [target, setTarget] = useState(DEFAULT);
+  const [pin, setPin] = useState(null);
+
+  const handleBuildingLoaded = useCallback((b) => {
+    setPin(b?.pin ?? null);
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-bg">
@@ -42,7 +48,12 @@ export default function App() {
           {target.address}
         </div>
 
-        <BuildingDetail lat={target.lat} lng={target.lng} />
+        <BuildingDetail
+          lat={target.lat}
+          lng={target.lng}
+          onLoaded={handleBuildingLoaded}
+        />
+        <TaxBill pin={pin} />
         <NearestCTAStop lat={target.lat} lng={target.lng} />
       </div>
     </main>
