@@ -103,3 +103,7 @@ services:
         sync: false
       - key: HOWLOUD_API_KEY
         sync: false
+      - key: MAPBOX_TOKEN
+        sync: false
+      - key: FOURSQUARE_API_KEY
+        sync: false

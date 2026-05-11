@@ -471,6 +471,83 @@ def amenities():
     return jsonify({"category": category, "places": rows, "cached": False})
 
 
+# Mapbox Directions — driving / walking / cycling commute times. 30d cache.
+# Free tier 100K req/mo well covers expected usage.
+MAPBOX_URL = "https://api.mapbox.com/directions/v5/mapbox"
+MAPBOX_TTL_SECONDS = 30 * 24 * 60 * 60
+_MAPBOX_MODES = {"driving", "driving-traffic", "walking", "cycling"}
+
+
+@app.get("/commute")
+def commute():
+    # Schema matches existing commute_cache: building_pin (origin) + work_lat/work_lng (dest).
+    # Origin is always a known building since this is invoked from BuildingDetail.
+    pin = re.sub(r"\D", "", request.args.get("pin", ""))
+    if not re.fullmatch(r"\d{14}", pin):
+        return jsonify({"error": "pin must be 14 digits"}), 400
+    try:
+        from_lat = float(request.args["from_lat"])
+        from_lng = float(request.args["from_lng"])
+        work_lat = float(request.args["work_lat"])
+        work_lng = float(request.args["work_lng"])
+    except (KeyError, ValueError):
+        return jsonify({"error": "from_lat, from_lng, work_lat, work_lng required"}), 400
+    mode = (request.args.get("mode") or "driving-traffic").lower()
+    if mode not in _MAPBOX_MODES:
+        return jsonify({"error": f"mode must be one of {sorted(_MAPBOX_MODES)}"}), 400
+    token = os.environ.get("MAPBOX_TOKEN")
+    if not token:
+        return jsonify({"error": "MAPBOX_TOKEN not configured"}), 503
+
+    client = get_admin_client()
+    cached = (client.table("commute_cache")
+              .select("building_pin,work_lat,work_lng,mode,minutes,distance_m,fetched_at")
+              .eq("building_pin", pin)
+              .eq("work_lat", work_lat).eq("work_lng", work_lng)
+              .eq("mode", mode).limit(1).execute().data or [])
+    if cached:
+        row = cached[0]
+        age_s = (datetime.now(timezone.utc) - _parse_ts(row["fetched_at"])).total_seconds()
+        if age_s < MAPBOX_TTL_SECONDS:
+            return jsonify({**row, "cached": True})
+
+    try:
+        r = requests.get(
+            f"{MAPBOX_URL}/{mode}/{from_lng},{from_lat};{work_lng},{work_lat}",
+            params={"access_token": token, "overview": "false"},
+            timeout=20,
+        )
+        r.raise_for_status()
+        routes = (r.json().get("routes") or [])
+    except Exception as e:
+        return jsonify({"error": "mapbox lookup failed", "detail": str(e)}), 500
+
+    if not routes:
+        return jsonify({"error": "no route between those points"}), 404
+
+    top = routes[0]
+    minutes = int(round(top.get("duration", 0) / 60))
+    distance_m = int(top.get("distance", 0))
+    row = {
+        "building_pin": pin,
+        "work_lat": work_lat,
+        "work_lng": work_lng,
+        "mode": mode,
+        "minutes": minutes,
+        "distance_m": distance_m,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "row_hash": hashlib.md5(
+            f"{pin}|{work_lat:.4f},{work_lng:.4f}|{mode}|{minutes}".encode()
+        ).hexdigest(),
+    }
+    try:
+        client.table("commute_cache").upsert([row]).execute()
+    except Exception as e:
+        return jsonify({"error": "cache upsert failed", "detail": str(e)}), 500
+
+    return jsonify({**row, "cached": False})
+
+
 # HowLoud soundscore by lat/lng — paid per call. 1yr cache (noise is static).
 HOWLOUD_URL = "https://api.howloud.com/v2/score"
 HOWLOUD_TTL_SECONDS = 365 * 24 * 60 * 60
@@ -538,6 +615,76 @@ def _price_level_int(s):
         "PRICE_LEVEL_EXPENSIVE": 3,
         "PRICE_LEVEL_VERY_EXPENSIVE": 4,
     }.get(s)
+
+
+# Foursquare Places v4 — vibe / lifestyle POIs. Free tier ~1000 calls/day.
+# Replaces Yelp Fusion (expired-trial + TOS-unfriendly caching).
+FSQ_URL = "https://places-api.foursquare.com/places/search"
+FSQ_API_VERSION = "2025-06-17"
+FSQ_TTL_SECONDS = 30 * 24 * 60 * 60
+
+
+@app.get("/vibe")
+def vibe():
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return jsonify({"error": "lat and lng required"}), 400
+    api_key = os.environ.get("FOURSQUARE_API_KEY")
+    if not api_key:
+        return jsonify({"error": "FOURSQUARE_API_KEY not configured"}), 503
+
+    addr_key = f"{lat:.4f},{lng:.4f}"
+    client = get_admin_client()
+    cached = (client.table("amenities_cache")
+              .select("name,distance_m,price_level,place_id,cached_at,expires_at")
+              .eq("address_key", addr_key).eq("category", "fsq_vibe")
+              .execute().data or [])
+    if cached:
+        first = cached[0]
+        age_s = (datetime.now(timezone.utc) - _parse_ts(first["cached_at"])).total_seconds()
+        if age_s < FSQ_TTL_SECONDS:
+            return jsonify({"places": cached, "cached": True})
+
+    try:
+        r = requests.get(FSQ_URL, headers={
+            "Authorization": f"Bearer {api_key}",
+            "X-Places-Api-Version": FSQ_API_VERSION,
+            "Accept": "application/json",
+        }, params={"ll": f"{lat},{lng}", "radius": 400, "limit": 15}, timeout=20)
+        r.raise_for_status()
+        results = (r.json().get("results") or [])
+    except Exception as e:
+        return jsonify({"error": "foursquare lookup failed", "detail": str(e)}), 500
+
+    now = datetime.now(timezone.utc).isoformat()
+    expires = (datetime.now(timezone.utc) +
+               __import__("datetime").timedelta(seconds=FSQ_TTL_SECONDS)).isoformat()
+    rows = []
+    for p in results:
+        plat, plng = p.get("latitude"), p.get("longitude")
+        dist = None
+        if plat is not None and plng is not None:
+            dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+        cats = p.get("categories") or []
+        rows.append({
+            "address_key": addr_key,
+            "category": "fsq_vibe",
+            "name": p.get("name"),
+            "distance_m": dist,
+            "price_level": None,
+            "place_id": p.get("fsq_place_id"),
+            "cached_at": now,
+            "expires_at": expires,
+        })
+    if rows:
+        try:
+            client.table("amenities_cache").insert(rows).execute()
+        except Exception as e:
+            return jsonify({"error": "cache insert failed", "detail": str(e)}), 500
+
+    return jsonify({"places": rows, "cached": False})
 
 
 # US Census Bureau geocoder — proxied because Census doesn't return CORS
