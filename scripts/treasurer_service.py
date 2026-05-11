@@ -177,6 +177,77 @@ def health():
     return jsonify({"ok": True})
 
 
+# FEMA NFHL flood zone — per-coordinate lookup, 1yr cache.
+# Free, keyless, ArcGIS REST. Returns FLD_ZONE (X/A/AE/VE/etc) + subtype.
+FEMA_URL = (
+    "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/"
+    "MapServer/28/query"
+)
+FEMA_TTL_SECONDS = 365 * 24 * 60 * 60
+
+
+@app.get("/flood-zone")
+def flood_zone():
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return jsonify({"error": "lat and lng required as floats"}), 400
+
+    coord_key = f"{lat:.4f},{lng:.4f}"
+    client = get_admin_client()
+
+    cached = (client.table("fema_cache")
+              .select("flood_zone,zone_subtype,fetched_at")
+              .eq("coord_key", coord_key).limit(1).execute().data or [])
+    if cached:
+        row = cached[0]
+        age_s = (datetime.now(timezone.utc) -
+                 datetime.fromisoformat(row["fetched_at"].replace("Z", "+00:00"))).total_seconds()
+        if age_s < FEMA_TTL_SECONDS:
+            return jsonify({**row, "cached": True})
+
+    try:
+        r = requests.get(FEMA_URL, params={
+            "where": "1=1",
+            "geometry": f"{lng},{lat}",
+            "geometryType": "esriGeometryPoint",
+            "inSR": "4326",
+            "outFields": "FLD_ZONE,ZONE_SUBTY",
+            "returnGeometry": "false",
+            "f": "json",
+        }, timeout=30)
+        r.raise_for_status()
+        features = (r.json().get("features") or [])
+        if features:
+            attrs = features[0].get("attributes") or {}
+            zone = attrs.get("FLD_ZONE")
+            subtype = attrs.get("ZONE_SUBTY")
+        else:
+            # No FIRM polygon covering the point — outside floodplain entirely.
+            zone, subtype = "X", "OUTSIDE MAPPED FLOOD HAZARD AREA"
+    except Exception as e:
+        return jsonify({"error": "fema lookup failed", "detail": str(e)}), 500
+
+    row = {
+        "coord_key": coord_key,
+        "flood_zone": zone,
+        "zone_subtype": subtype,
+        "fetched_at": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        client.table("fema_cache").upsert([row]).execute()
+    except Exception as e:
+        return jsonify({"error": "cache upsert failed", "detail": str(e)}), 500
+
+    return jsonify({
+        "flood_zone": zone,
+        "zone_subtype": subtype,
+        "fetched_at": row["fetched_at"],
+        "cached": False,
+    })
+
+
 # US Census Bureau geocoder — proxied because Census doesn't return CORS
 # headers, so browsers can't call it directly. Same endpoint, same response
 # shape as Census; we just re-emit with this service's CORS.
