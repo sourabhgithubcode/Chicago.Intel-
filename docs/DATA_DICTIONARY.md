@@ -2306,6 +2306,8 @@ What we ingest today instead is §13.27 — Parking Permit Zones — which fixes
 
 **Notes.** Refresh: nightly delta on `issue_date`, 30-day lookback (some permits are back-dated when re-issued). Rows missing both `pin1` AND `latitude`/`longitude` → `unmatched_log`.
 
+**Status.** Bronze-only as of 2026-05-12. Fetcher: `scripts/fetchers/fetch_building_permits.py` (sodapy + 2020-01-01 date floor + paginated). First write: `s3://chicago-intel-bronze/bronze/building_permits/20260512T051346.jsonl.gz` (226,114 rows). Silver table + transformer + reconcile-to-`buildings.pin` land when the data-load freeze lifts and §9.3.2 construction-pipeline factor has a concrete caller.
+
 ---
 
 ### 13.22 ACS extended variables (B19013 / B25002 / B25003) — extends `tracts`
@@ -2346,7 +2348,7 @@ Treat this section as void. The real first-step parking source is §13.27 (Parki
 
 ### 13.24 CPS Attendance Boundaries (`school_boundaries` — new table)
 
-**Endpoint.** `https://data.cityofchicago.org/resource/8wkm-z37x.geojson` (Chicago Public Schools attendance boundaries, elementary). Free, no key.
+**Endpoint.** `https://data.cityofchicago.org/resource/5ihw-cbdn.geojson` (Chicago Public Schools — Elementary School Attendance Boundaries SY2425). Free, no key. The earlier draft of this section cited `8wkm-z37x` which does not exist on the portal. CPS publishes a separate dataset ID per school year — `5ihw-cbdn` is the current SY2425 edition; rolling forward annually means updating this ID (and the `DATASET` constant in the fetcher) when CPS releases SY2526.
 
 **Raw format.** GeoJSON FeatureCollection. One feature = one elementary school's attendance area.
 
@@ -2381,6 +2383,8 @@ Treat this section as void. The real first-step parking source is §13.27 (Parki
 **Use.** Replaces the nearest-school approximation in §13.13. Building's `school_elem` is now derived by `ST_Contains(school_boundaries.boundary, buildings.location)` — exact CPS assignment, not nearest. The `rcdts` column then joins to the Illinois Report Card data for the rating.
 
 **Notes.** Refresh annually (boundaries change each school year). Same `is_deleted` tombstone rule as other silver tables.
+
+**Status.** Bronze-only as of 2026-05-12. Fetcher: `scripts/fetchers/fetch_cps_elementary_boundaries.py`. First write: `s3://chicago-intel-bronze/bronze/cps_elementary_boundaries/20260512T051555.jsonl.gz` (356 features — one per elementary catchment).
 
 #### New gold MV column implied
 `gold_address_intel.school_elem` switches from "nearest school by distance" to "school whose boundary contains this building" — a quality jump from 7/10 to 9/10 confidence. The rating itself (still 7/10) comes from Illinois Report Card joined on `rcdts`.
