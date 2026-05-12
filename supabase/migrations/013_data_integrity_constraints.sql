@@ -63,27 +63,12 @@ ALTER TABLE tracts
   ADD CONSTRAINT tracts_renter_pct_range
     CHECK (renter_occupied_pct IS NULL OR (renter_occupied_pct >= 0 AND renter_occupied_pct <= 1)) NOT VALID;
 
--- ─── building_permits (added in 012) ──────────────────
-ALTER TABLE building_permits
-  ADD CONSTRAINT permits_location_in_chicago
-    CHECK (in_chicago_bbox(location)) NOT VALID;
-ALTER TABLE building_permits
-  ADD CONSTRAINT permits_category_valid
-    CHECK (category IS NULL OR category IN ('new_construction','renovation','demolition','other')) NOT VALID;
-ALTER TABLE building_permits
-  ADD CONSTRAINT permits_reported_cost_nonneg
-    CHECK (reported_cost IS NULL OR reported_cost >= 0) NOT VALID;
-
--- ─── parking_lots (added in 012) ──────────────────────
-ALTER TABLE parking_lots
-  ADD CONSTRAINT parking_monthly_rate_nonneg
-    CHECK (monthly_rate IS NULL OR monthly_rate >= 0) NOT VALID;
-ALTER TABLE parking_lots
-  ADD CONSTRAINT parking_capacity_nonneg
-    CHECK (capacity IS NULL OR capacity >= 0) NOT VALID;
-ALTER TABLE parking_lots
-  ADD CONSTRAINT parking_location_in_chicago
-    CHECK (in_chicago_bbox(location)) NOT VALID;
+-- NOTE: earlier drafts of this migration added constraint blocks for
+-- `building_permits` and `parking_lots` "added in 012". Those tables were
+-- never created — migration 012 was repurposed to ACS-only column adds —
+-- so the ALTER blocks were dead and broke fresh-DB applies. Removed.
+-- When either table is actually created, add its constraints in the
+-- creating migration, not back here.
 
 -- ─── Advisory lock helper ─────────────────────────────
 -- Each fetcher acquires this at run start so two concurrent runs of the

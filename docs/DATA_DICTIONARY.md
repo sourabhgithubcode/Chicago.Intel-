@@ -2247,9 +2247,13 @@ Until then, **the dictionary is the authority** (per top-of-doc rule): the loade
 
 ---
 
-### 13.20 SpotHero — Parking (replaced)
+### 13.20 SpotHero — Parking (no public substitute)
 
-Documented for completeness: SpotHero offers a Partner API for paid parking rates, but partnership is gated. We replaced this with the Chicago Data Portal *Parking Lots* dataset (`94t9-w7tc`) — see §13.23 for the spec.
+SpotHero offers a Partner API for paid parking rates, but partnership is gated. The Chicago Data Portal has no public dataset for paid-garage monthly rates — the earlier §13.23 "Parking Lots (V2)" spec cited dataset `94t9-w7tc`, which does not exist on the portal. The portal returns `dataset.missing` for that ID. Treat §13.23 as void.
+
+For paid garage rates the only paths remain: SpotHero/ParkWhiz partner APIs, Parkopedia / INRIX / HERE (commercial), or OSM `amenity=parking` with `fee=yes` (no rate data). All deferred until there is a current caller for the parking_delta line in §14.8.
+
+What we ingest today instead is §13.27 — Parking Permit Zones — which fixes the more honest gap: telling the truth about whether street parking is actually free at a given address (~30% of Chicago's residential streets sit inside a permit zone).
 
 ---
 
@@ -2332,47 +2336,11 @@ Same fetcher and endpoint as §13.3 (Census ACS API). Three additional variables
 
 ---
 
-### 13.23 Chicago Parking Lots (`parking_lots` — new table)
+### 13.23 Chicago Parking Lots (`94t9-w7tc`) — VOID
 
-**Endpoint.** `https://data.cityofchicago.org/resource/94t9-w7tc.geojson` (Socrata, free). Replaces SpotHero (§13.20).
+Earlier draft of this section specced a "Chicago Parking Lots (V2)" dataset at `94t9-w7tc`. That dataset ID does not exist on the Chicago Data Portal (verified — the resource endpoint returns `dataset.missing`). No table, no fetcher, no transformer was ever built. Migration `013` retains `ALTER TABLE parking_lots …` constraints for a table that was never created; those lines are dead and will need to be dropped or made conditional when the next parking-table migration is authored.
 
-**Raw format.** GeoJSON FeatureCollection. One feature = one paid parking facility.
-
-**Sample raw feature** (subset):
-```json
-{
-  "type": "Feature",
-  "properties": {
-    "facility_id": "PKG_4521",
-    "facility_name": "Millennium Park Garage",
-    "facility_type": "PARKING GARAGE",
-    "capacity": 2218,
-    "address": "5 S COLUMBUS DR",
-    "monthly_rate": 295.00,
-    "hourly_rate_first": 6.00,
-    "operator": "SP Plus"
-  },
-  "geometry": { "type": "Polygon", "coordinates": [[[...]]] }
-}
-```
-
-**Mapping table.**
-
-| Raw field | Our column | Type | Transform | Meaning |
-|-----------|------------|------|-----------|---------|
-| `facility_id` | `parking_lots.id` | TEXT | direct | natural key |
-| `facility_name` | `parking_lots.name` | TEXT | title-case | display |
-| `facility_type` | `parking_lots.facility_type` | TEXT | direct | `'PARKING GARAGE'` / `'SURFACE LOT'` / `'VALET'` |
-| `capacity` | `parking_lots.capacity` | INT | `int(value)`; NULL if missing | total spaces |
-| `monthly_rate` | `parking_lots.monthly_rate` | NUMERIC(7,2) | direct; NULL if missing | rent in $ — drives §9.3.2 micro factor "parking cost" |
-| `hourly_rate_first` | `parking_lots.hourly_rate` | NUMERIC(5,2) | direct | first-hour rate (most-quoted figure) |
-| `address` | `parking_lots.address` | TEXT | direct | display |
-| derived | `parking_lots.location` | GEOMETRY(POINT,4326) | `ST_PointOnSurface(boundary)` (§5.1) | KNN reference point |
-| `geometry` | `parking_lots.boundary` | GEOMETRY(MULTIPOLYGON,4326) | parse GeoJSON | facility footprint |
-
-**Row meaning.** One row = one paid parking facility. Free street parking is NOT in this dataset — it's the absence of a row that signals "free parking only" in a polygon.
-
-**Notes.** Refresh quarterly. The "parking delta" line in the Surplus formula (§14.8) compares the building's nearest paid garage `monthly_rate` to the cost of free street parking ($0) — distance to nearest is the choice variable. Pre-computed in `gold_address_intel.nearest_paid_parking_*` once this loader lands.
+Treat this section as void. The real first-step parking source is §13.27 (Parking Permit Zones). For paid-garage rates, see §13.20.
 
 ---
 
@@ -2440,7 +2408,75 @@ Per the no-bloat rule, `012` is NOT written until at least one of these fetchers
 
 ---
 
-## Section 14 — Data Lineage (source → user)
+### 13.27 Chicago Parking Permit Zones (`u9xt-hiju`) — bronze-only
+
+**Endpoint.** `https://data.cityofchicago.org/resource/u9xt-hiju.geojson` (Socrata, free; `X-App-Token` honored).
+
+**Status.** Bronze-only as of 2026-05-11. Fetcher: `scripts/fetchers/fetch_parking_permit_zones.py`. First write: `s3://chicago-intel-bronze/bronze/parking_permit_zones/20260512T045212.jsonl.gz` (10,372 features). No silver table, no transformer, no loader yet — those land when the data-load freeze lifts and the parking-delta line in §14.8 has a concrete caller.
+
+**Raw shape.** GeoJSON FeatureCollection. `geometry` is null on every feature — this is a segment-level address-range table, not a polygon layer. Each row pairs a street segment with the permit zone that covers it.
+
+**Sample raw feature** (verified from live endpoint):
+```json
+{
+  "type": "Feature",
+  "geometry": null,
+  "properties": {
+    "row_id": "14735",
+    "zone": "143",
+    "status": "ACTIVE",
+    "street_direction": "N",
+    "street_name": "KENMORE",
+    "street_type": "AVE",
+    "second_street_direction": null,
+    "address_range_low": "1856",
+    "address_range_high": "1856",
+    "odd_even": "E",
+    "buffer": "N",
+    "ward_low": "43",
+    "ward_high": "43"
+  }
+}
+```
+
+**Why this dataset.** The Surplus formula's `parking_delta` line currently assumes street parking = $0. That assumption is wrong for any address inside a permit zone — residents need a permit sticker (or guest passes) to park legally. Permit-zone coverage is the variable that turns "is street parking actually free?" from an assumption into a lookup. ~10K rows covering thousands of street segments.
+
+**Known limitations.**
+1. **No geometry.** Resolving address-range → polygon requires joining to `streets` (§13.8) by `street_name + direction + type` and clipping to `address_range_low..high`. That join is a silver-layer concern; bronze just stores the raw features.
+2. **No rate / pricing.** Permit cost (annual sticker fee + daily guest pass) is set by City of Chicago and lives outside this dataset.
+3. **Status filter.** Inactive zones (`status != 'ACTIVE'`) should be excluded at silver time.
+
+**Refresh.** Quarterly is sufficient — permit zone boundaries change infrequently.
+
+---
+
+### 13.28 Chicago Winter Overnight Parking Restrictions (`mcad-r2g5`) — bronze-only
+
+**Endpoint.** `https://data.cityofchicago.org/resource/mcad-r2g5.geojson` (Socrata, free).
+
+**Status.** Bronze-only as of 2026-05-11. Fetcher: `scripts/fetchers/fetch_winter_overnight_restrictions.py`. First write: `s3://chicago-intel-bronze/bronze/winter_overnight_restrictions/20260512T045755.jsonl.gz` (20 features).
+
+**Raw shape.** GeoJSON FeatureCollection. Each feature is a `MultiLineString` of arterial street segments where parking is banned overnight (3am–7am) Dec 1 – Apr 1 regardless of snowfall. Tiny dataset — 20 features cover the named arterials.
+
+**Why this dataset.** Companion to §13.27. Even outside a permit zone, an address on one of these arterials cannot count on free overnight street parking — another correction to the `parking_delta = $0` assumption in §14.8.
+
+**Refresh.** Annually. Designations rarely change.
+
+---
+
+### 13.29 Chicago Snow Route Parking Restrictions (`i6k4-giaj`) — bronze-only
+
+**Endpoint.** `https://data.cityofchicago.org/resource/i6k4-giaj.geojson` (Socrata, free).
+
+**Status.** Bronze-only as of 2026-05-11. Fetcher: `scripts/fetchers/fetch_snow_route_restrictions.py`. First write: `s3://chicago-intel-bronze/bronze/snow_route_restrictions/20260512T045757.jsonl.gz` (144 features).
+
+**Raw shape.** GeoJSON FeatureCollection. Each feature is a `MultiLineString` of streets where parking is banned whenever 2"+ snow accumulates. Activates by snowfall event, not by date.
+
+**Why this dataset.** Same family as §13.27 / §13.28 — another lookup that decides whether $0 street parking is honest for a given address. Activation is weather-driven (event-based), so its contribution to `parking_delta` is probabilistic by season.
+
+**Refresh.** Annually.
+
+---
 
 §13 documents one hop (raw API → silver). §14 documents the full chain end-to-end for the values a user actually sees on screen — bronze → silver → reconcile → gold → frontend → UI label — and what can change the value at each hop. Read this when debugging a "why does the dashboard show X?" question.
 
