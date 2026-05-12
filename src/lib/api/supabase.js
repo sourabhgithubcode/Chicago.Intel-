@@ -100,6 +100,32 @@ export async function getLastSyncedAt(source) {
   return data?.completed_at ?? null;
 }
 
+/**
+ * UDP Chicago displacement typology at a coordinate (tract-level spatial join).
+ * Backed by RPC `displacement_at(lat, lng)` (020). Vintage 2013–2018 → 6/10.
+ *
+ * @returns {Promise<{
+ *   geoid: string, typology: string,
+ *   source: { id: string, label: string, url: string },
+ *   confidence: number,
+ * } | null>}
+ */
+export async function getDisplacementAt(lat, lng) {
+  const rows = await rpc('displacement_at', { lat, lng });
+  if (!rows || rows.length === 0) return null;
+  const r = rows[0];
+  return {
+    geoid: r.geoid,
+    typology: r.typology,
+    source: {
+      id: 'udp-chicago',
+      label: 'Urban Displacement Project (UC Berkeley)',
+      url: 'https://github.com/urban-displacement/displacement-typologies',
+    },
+    confidence: 6,
+  };
+}
+
 export async function getNearestCTAStop(lat, lng) {
   const rows = await rpc('nearest_cta', { lat, lng });
   if (!rows || rows.length === 0) return null;

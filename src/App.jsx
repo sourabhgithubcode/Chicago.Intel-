@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
+import DisplacementRisk from './components/sections/DisplacementRisk.jsx';
 import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
 import SearchBar from './components/sections/SearchBar.jsx';
 import TaxBill from './components/sections/TaxBill.jsx';
@@ -55,6 +56,7 @@ export default function App() {
         />
         <TaxBill pin={pin} />
         <NearestCTAStop lat={target.lat} lng={target.lng} />
+        <DisplacementRisk lat={target.lat} lng={target.lng} />
       </div>
     </main>
   );
