@@ -28,11 +28,17 @@ export default function App() {
   useEffect(() => {
     const onMove = (e) => {
       if (!dragging.current || !containerRef.current) return;
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
       const rect = containerRef.current.getBoundingClientRect();
       const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 25), 75);
       setSplitPct(pct);
     };
-    const onUp = () => { dragging.current = false; };
+    const onUp = () => {
+      dragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => {
@@ -58,9 +64,9 @@ export default function App() {
   }, []);
 
   return (
-    <div ref={containerRef} className="flex h-screen overflow-hidden bg-bg select-none">
+    <div ref={containerRef} className="flex h-screen overflow-hidden bg-bg">
       {/* ── Left: scrollable data panel ── */}
-      <div style={{ width: `${splitPct}%` }} className="flex-shrink-0 overflow-y-auto">
+      <div style={{ width: `calc(${splitPct}% - 4px)` }} className="flex-shrink-0 overflow-y-auto">
         <div className="flex flex-col gap-4 p-6">
           <header className="glass-1 space-y-2 p-6 text-center">
             <div className="label-mono text-t2 text-xs">chicago · intel · v2</div>
@@ -128,8 +134,8 @@ export default function App() {
         </div>
       </div>
 
-      {/* ── Right: sticky Mapbox map ── */}
-      <div style={{ width: `${100 - splitPct}%` }} className="h-screen flex-shrink-0">
+      {/* ── Right: Mapbox map fills remaining space ── */}
+      <div className="h-screen min-w-0 flex-1">
         <MapView
           layer={layer}
           lat={target.lat}
