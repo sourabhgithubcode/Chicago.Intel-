@@ -18,7 +18,7 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
     <nav className="glass-2 px-4 py-3 flex flex-wrap items-center">
       {levels.map((lvl, i) => {
         const isCurrent = i === currentIdx;
-        const isClickable = i < currentIdx;
+        const isClickable = i !== currentIdx;
 
         return (
           <span key={lvl.id} className="flex items-center">

@@ -49,29 +49,53 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
       return;
     }
 
-    if (layer === 'cca' && ccaId != null) {
-      getCcaGeojson(ccaId)
-        .then((geom) => {
-          if (!geom) return;
-          const feat = toFeature(geom);
-          onGeoJson(feat);
-          const [w, s, e, n] = bbox(feat);
-          map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
-        })
-        .catch(() => {});
+    if (layer === 'cca') {
+      if (ccaId != null) {
+        getCcaGeojson(ccaId)
+          .then((geom) => {
+            if (!geom) {
+              map.flyTo({ center: [lng, lat], zoom: 12, duration: 800 });
+              onGeoJson(null);
+              return;
+            }
+            const feat = toFeature(geom);
+            onGeoJson(feat);
+            const [w, s, e, n] = bbox(feat);
+            map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
+          })
+          .catch(() => {
+            map.flyTo({ center: [lng, lat], zoom: 12, duration: 800 });
+            onGeoJson(null);
+          });
+      } else {
+        map.flyTo({ center: [lng, lat], zoom: 12, duration: 800 });
+        onGeoJson(null);
+      }
       return;
     }
 
-    if (layer === 'tract' && tractGeoid != null) {
-      getTractGeojson(tractGeoid)
-        .then((geom) => {
-          if (!geom) return;
-          const feat = toFeature(geom);
-          onGeoJson(feat);
-          const [w, s, e, n] = bbox(feat);
-          map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
-        })
-        .catch(() => {});
+    if (layer === 'tract') {
+      if (tractGeoid != null) {
+        getTractGeojson(tractGeoid)
+          .then((geom) => {
+            if (!geom) {
+              map.flyTo({ center: [lng, lat], zoom: 14, duration: 800 });
+              onGeoJson(null);
+              return;
+            }
+            const feat = toFeature(geom);
+            onGeoJson(feat);
+            const [w, s, e, n] = bbox(feat);
+            map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
+          })
+          .catch(() => {
+            map.flyTo({ center: [lng, lat], zoom: 14, duration: 800 });
+            onGeoJson(null);
+          });
+      } else {
+        map.flyTo({ center: [lng, lat], zoom: 14, duration: 800 });
+        onGeoJson(null);
+      }
     }
   }, [layer, lat, lng, ccaId, tractGeoid, map, onGeoJson]);
 
