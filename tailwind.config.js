@@ -10,9 +10,9 @@ export default {
         bg:  '#EEF1F8',   // page canvas — light blue-grey
         bg2: '#FFFFFF',   // card surface
         t0:  '#0F172A',   // primary text — dark navy
-        t1:  '#334155',   // secondary text
-        t2:  '#64748B',   // tertiary text
-        t3:  '#94A3B8',   // muted / label text
+        t1:  '#1E293B',   // secondary text
+        t2:  '#475569',   // tertiary text
+        t3:  '#64748B',   // muted / label text — min 4.6:1 on white
         lime:   '#16A34A', // 9-10/10 verified — green on white
         cyan:   '#2563EB', // 7-8/10 strong — blue on white
         violet: '#7C3AED',
