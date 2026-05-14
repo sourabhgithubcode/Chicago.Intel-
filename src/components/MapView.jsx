@@ -17,12 +17,12 @@ const CHICAGO = { longitude: -87.65, latitude: 41.85, zoom: 10 };
 const FILL_LAYER = {
   id: 'poly-fill',
   type: 'fill',
-  paint: { 'fill-color': 'rgba(56,189,248,0.15)', 'fill-outline-color': 'rgba(56,189,248,0)' },
+  paint: { 'fill-color': 'rgba(37,99,235,0.10)', 'fill-outline-color': 'rgba(37,99,235,0)' },
 };
 const LINE_LAYER = {
   id: 'poly-line',
   type: 'line',
-  paint: { 'line-color': 'rgba(56,189,248,0.85)', 'line-width': 2 },
+  paint: { 'line-color': 'rgba(37,99,235,0.80)', 'line-width': 2 },
 };
 
 function toFeature(geom) {
@@ -149,7 +149,7 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
       mapboxAccessToken={TOKEN}
       initialViewState={CHICAGO}
       style={{ width: '100%', height: '100%' }}
-      mapStyle="mapbox://styles/mapbox/dark-v11"
+      mapStyle="mapbox://styles/mapbox/light-v11"
     >
       <FlyController
         layer={layer}

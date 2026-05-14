@@ -42,18 +42,7 @@ export default function App() {
     <div className="flex h-screen overflow-hidden bg-bg">
       {/* ── Left: scrollable data panel ── */}
       <div className="w-1/2 overflow-y-auto">
-        {/* Gradient blobs */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed left-0 top-0 w-1/2 h-full z-0"
-          style={{
-            background:
-              'radial-gradient(40vw 40vw at 10% 20%, rgba(168,255,120,0.08), transparent 60%),' +
-              'radial-gradient(35vw 35vw at 40% 80%, rgba(192,132,252,0.07), transparent 60%)',
-          }}
-        />
-
-        <div className="relative z-10 flex flex-col gap-4 p-6">
+        <div className="flex flex-col gap-4 p-6">
           <header className="glass-1 space-y-2 p-6 text-center">
             <div className="label-mono text-t2 text-xs">chicago · intel · v2</div>
             <h1 className="display text-4xl text-t0">Chicago.Intel</h1>

@@ -1,48 +1,50 @@
 /** @type {import('tailwindcss').Config} */
-// Design tokens extracted from chicago-v4-final.html.
-// Aurora/glassmorphism system with Outfit + DM Sans + Fira Code.
+// Light-mode redesign — clean white cards on blue-grey canvas.
+// Accent colors darkened to meet contrast on white backgrounds.
 
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
   theme: {
     extend: {
       colors: {
-        bg: '#050810',
-        bg2: '#08101e',
-        t0: '#f5f8ff',
-        t1: '#d0e0f8',
-        t2: '#a8bcd8',
-        t3: '#4a6080',
-        lime: '#a8ff78',
-        cyan: '#38bdf8',
-        violet: '#c084fc',
-        amber: '#fcd34d',
-        rose: '#fb7185',
-        teal: '#2dd4bf',
-        z0: '#a8ff78',
-        z1: '#6ee7b7',
-        z2: '#fcd34d',
-        z3: '#fb923c',
-        z4: '#7c3322',
+        bg:  '#EEF1F8',   // page canvas — light blue-grey
+        bg2: '#FFFFFF',   // card surface
+        t0:  '#0F172A',   // primary text — dark navy
+        t1:  '#334155',   // secondary text
+        t2:  '#64748B',   // tertiary text
+        t3:  '#94A3B8',   // muted / label text
+        lime:   '#16A34A', // 9-10/10 verified — green on white
+        cyan:   '#2563EB', // 7-8/10 strong — blue on white
+        violet: '#7C3AED',
+        amber:  '#D97706', // ≤6/10 signal — amber on white
+        rose:   '#E11D48',
+        teal:   '#0D9488',
+        z0: '#16A34A',
+        z1: '#0D9488',
+        z2: '#D97706',
+        z3: '#EA580C',
+        z4: '#991B1B',
       },
       fontFamily: {
         display: ['Outfit', 'system-ui', 'sans-serif'],
-        sans: ['"DM Sans"', 'system-ui', 'sans-serif'],
-        mono: ['"Fira Code"', 'ui-monospace', 'monospace'],
+        sans:    ['"DM Sans"', 'system-ui', 'sans-serif'],
+        mono:    ['"Fira Code"', 'ui-monospace', 'monospace'],
       },
       fontSize: {
         base: '12px',
       },
       borderRadius: {
-        r: '18px',
-        'r-sm': '11px',
-        'r-xs': '7px',
+        r:     '16px',
+        'r-sm': '10px',
+        'r-xs': '6px',
       },
       boxShadow: {
-        'glow-lime': '0 0 32px rgba(168,255,120,.14)',
-        'glow-cyan': '0 0 32px rgba(56,189,248,.14)',
-        'glow-violet': '0 0 32px rgba(192,132,252,.12)',
-        cell: '0 4px 24px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.05) inset',
+        card:  '0 1px 3px rgba(15,23,42,0.08), 0 4px 16px rgba(15,23,42,0.06)',
+        'card-md': '0 2px 8px rgba(15,23,42,0.10), 0 8px 24px rgba(15,23,42,0.06)',
+        // keep glow shadows for map markers
+        'glow-lime':   '0 0 24px rgba(22,163,74,.20)',
+        'glow-cyan':   '0 0 24px rgba(37,99,235,.20)',
+        'glow-violet': '0 0 24px rgba(124,58,237,.16)',
       },
     },
   },

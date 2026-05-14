@@ -4,23 +4,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Design tokens from chicago-v4-final.html.
-   Kept as CSS vars because rgba + backdrop-filter combos
-   don't map cleanly to single Tailwind utilities. */
-:root {
-  --g1-bg: rgba(4, 10, 24, 0.9);
-  --g1-bd: rgba(255, 255, 255, 0.072);
-  --g1-blur: blur(28px) saturate(180%) brightness(1.05);
-
-  --g2-bg: rgba(14, 22, 45, 0.82);
-  --g2-bd: rgba(255, 255, 255, 0.16);
-  --g2-blur: blur(18px) saturate(160%);
-
-  --g3-bg: rgba(18, 28, 52, 0.88);
-  --g3-bd: rgba(255, 255, 255, 0.24);
-  --g3-blur: blur(12px) saturate(140%);
-}
-
 *,
 *::before,
 *::after {
@@ -34,44 +17,47 @@ body,
 }
 
 body {
-  background: #050810;
-  color: #f5f8ff;
+  background: #EEF1F8;
+  color: #0F172A;
   font-family: 'DM Sans', system-ui, sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   -webkit-font-smoothing: antialiased;
 }
 
 @layer components {
+  /* Large container card — header, main panels */
   .glass-1 {
-    background: var(--g1-bg);
-    border: 1px solid var(--g1-bd);
-    backdrop-filter: var(--g1-blur);
-    -webkit-backdrop-filter: var(--g1-blur);
-    border-radius: 18px;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4),
-      0 1px 0 rgba(255, 255, 255, 0.05) inset;
+    background: #FFFFFF;
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 16px;
+    box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.06);
   }
+
+  /* Section card — data blocks */
   .glass-2 {
-    background: var(--g2-bg);
-    border: 1px solid var(--g2-bd);
-    backdrop-filter: var(--g2-blur);
-    -webkit-backdrop-filter: var(--g2-blur);
-    border-radius: 11px;
+    background: #FFFFFF;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.06), 0 2px 12px rgba(15, 23, 42, 0.04);
   }
+
+  /* Inline badge / input / tag */
   .glass-3 {
-    background: var(--g3-bg);
-    border: 1px solid var(--g3-bd);
-    backdrop-filter: var(--g3-blur);
-    -webkit-backdrop-filter: var(--g3-blur);
-    border-radius: 7px;
+    background: #F8FAFC;
+    border: 1px solid rgba(15, 23, 42, 0.09);
+    border-radius: 6px;
   }
+
+  /* Monospace label — used for source tags, confidence, row labels */
   .label-mono {
     font-family: 'Fira Code', ui-monospace, monospace;
-    font-size: 12px;
-    letter-spacing: 0.07em;
+    font-size: 11px;
+    letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: #f5f8ff;
+    color: #64748B;
   }
+
+  /* Display heading — section titles, big values */
   .display {
     font-family: 'Outfit', system-ui, sans-serif;
     font-weight: 800;
