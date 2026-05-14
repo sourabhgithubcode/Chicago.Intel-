@@ -1,11 +1,12 @@
 // Mapbox GL map — polygon updates as user navigates breadcrumb layers.
-// city    → fly to Chicago overview, no polygon
-// cca     → fetch + draw CCA multipolygon, fit bounds
-// tract   → fetch + draw tract multipolygon, fit bounds
-// building→ fly to coordinate, show pin marker
+// city     → fly to Chicago overview, no polygon
+// cca      → CCA multipolygon, fit bounds
+// tract    → tract multipolygon, fit bounds
+// building → 75m radius circle polygon around the coordinate, zoom 16
 
-import { useEffect, useRef, useState } from 'react';
-import Map, { Layer, Marker, Source, useMap } from 'react-map-gl';
+import { useEffect, useState } from 'react';
+import Map, { Layer, Source, useMap } from 'react-map-gl';
+import { bbox, circle } from '@turf/turf';
 import { getCcaGeojson, getTractGeojson } from '../lib/api/supabase.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -15,12 +16,12 @@ const CHICAGO = { longitude: -87.65, latitude: 41.85, zoom: 10 };
 const FILL_LAYER = {
   id: 'poly-fill',
   type: 'fill',
-  paint: { 'fill-color': 'rgba(56,189,248,0.12)', 'fill-outline-color': 'rgba(56,189,248,0)' },
+  paint: { 'fill-color': 'rgba(56,189,248,0.15)', 'fill-outline-color': 'rgba(56,189,248,0)' },
 };
 const LINE_LAYER = {
   id: 'poly-line',
   type: 'line',
-  paint: { 'line-color': 'rgba(56,189,248,0.75)', 'line-width': 1.5 },
+  paint: { 'line-color': 'rgba(56,189,248,0.85)', 'line-width': 2 },
 };
 
 function toFeature(geom) {
@@ -40,34 +41,37 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
       return;
     }
 
-    if (layer === 'building') {
-      map.flyTo({ center: [lng, lat], zoom: 16, duration: 800 });
-      onGeoJson(null);
+    if (layer === 'building' && lat != null && lng != null) {
+      const poly = circle([lng, lat], 0.075, { steps: 48, units: 'kilometers' });
+      onGeoJson(poly);
+      const [w, s, e, n] = bbox(poly);
+      map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 800, maxZoom: 17 });
       return;
     }
 
     if (layer === 'cca' && ccaId != null) {
-      getCcaGeojson(ccaId).then((geom) => {
-        if (!geom) return;
-        onGeoJson(toFeature(geom));
-        // fit bounds using turf bbox
-        import('@turf/turf').then(({ bbox }) => {
-          const [w, s, e, n] = bbox(toFeature(geom));
+      getCcaGeojson(ccaId)
+        .then((geom) => {
+          if (!geom) return;
+          const feat = toFeature(geom);
+          onGeoJson(feat);
+          const [w, s, e, n] = bbox(feat);
           map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
-        });
-      }).catch(() => {});
+        })
+        .catch(() => {});
       return;
     }
 
     if (layer === 'tract' && tractGeoid != null) {
-      getTractGeojson(tractGeoid).then((geom) => {
-        if (!geom) return;
-        onGeoJson(toFeature(geom));
-        import('@turf/turf').then(({ bbox }) => {
-          const [w, s, e, n] = bbox(toFeature(geom));
+      getTractGeojson(tractGeoid)
+        .then((geom) => {
+          if (!geom) return;
+          const feat = toFeature(geom);
+          onGeoJson(feat);
+          const [w, s, e, n] = bbox(feat);
           map.fitBounds([[w, s], [e, n]], { padding: 40, duration: 800 });
-        });
-      }).catch(() => {});
+        })
+        .catch(() => {});
     }
   }, [layer, lat, lng, ccaId, tractGeoid, map, onGeoJson]);
 
@@ -98,12 +102,6 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
           <Layer {...FILL_LAYER} />
           <Layer {...LINE_LAYER} />
         </Source>
-      )}
-
-      {layer === 'building' && lat != null && lng != null && (
-        <Marker longitude={lng} latitude={lat}>
-          <div className="w-3 h-3 rounded-full bg-cyan shadow-glow-cyan" />
-        </Marker>
       )}
     </Map>
   );

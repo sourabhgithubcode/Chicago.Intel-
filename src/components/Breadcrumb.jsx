@@ -1,23 +1,24 @@
-// Chicago › [CCA] › [Tract] › [Address] drill-down nav.
-// Current level is plain text; levels above are clickable buttons.
+// Chicago › Neighborhood › Census Tract › Building — drill-down nav.
+// Current level is plain text. Every level above current is always clickable
+// (even when name isn't resolved yet — navigate the layer, show what we have).
 
-const SEP = <span className="text-t3 select-none mx-1">›</span>;
+const SEP = <span className="text-t3 select-none px-2 text-lg">›</span>;
 
 export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerChange }) {
   const levels = [
     { id: 'city',     label: 'Chicago' },
-    { id: 'cca',      label: ccaName ?? '—' },
-    { id: 'tract',    label: tractId  ?? '—' },
-    { id: 'building', label: address  ?? '—' },
+    { id: 'cca',      label: ccaName ?? 'Neighborhood' },
+    { id: 'tract',    label: tractId  ?? 'Census Tract' },
+    { id: 'building', label: address ? address.split(',')[0] : 'Building' },
   ];
 
   const currentIdx = levels.findIndex((l) => l.id === layer);
 
   return (
-    <nav className="flex flex-wrap items-center gap-0 label-mono text-xs text-t2">
+    <nav className="glass-2 px-4 py-3 flex flex-wrap items-center">
       {levels.map((lvl, i) => {
         const isCurrent = i === currentIdx;
-        const isClickable = i < currentIdx && lvl.label !== '—';
+        const isClickable = i < currentIdx;
 
         return (
           <span key={lvl.id} className="flex items-center">
@@ -25,12 +26,18 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
             {isClickable ? (
               <button
                 onClick={() => onLayerChange(lvl.id)}
-                className="text-cyan hover:text-t0 transition-colors"
+                className="text-sm font-medium text-cyan hover:text-t0 transition-colors underline underline-offset-2"
               >
                 {lvl.label}
               </button>
             ) : (
-              <span className={isCurrent ? 'text-t0' : 'text-t3'}>
+              <span
+                className={
+                  isCurrent
+                    ? 'text-sm font-semibold text-t0'
+                    : 'text-sm text-t3'
+                }
+              >
                 {lvl.label}
               </span>
             )}
