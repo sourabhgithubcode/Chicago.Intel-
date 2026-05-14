@@ -1,8 +1,9 @@
 // Mapbox GL map — polygon updates as user navigates breadcrumb layers.
-// city     → fly to Chicago overview, no polygon
-// cca      → CCA multipolygon, fit bounds
-// tract    → tract multipolygon, fit bounds
-// building → 75m radius circle polygon around the coordinate, zoom 16
+// city     → fly to Chicago overview
+// cca      → CCA multipolygon from DB (migration 021), fit bounds
+// tract    → tract multipolygon from DB (migration 021), fit bounds
+// building → Mapbox building footprint via queryRenderedFeatures (OSM tiles),
+//            falls back to 75m circle if tile doesn't have footprint data
 
 import { useEffect, useState } from 'react';
 import Map, { Layer, Source, useMap } from 'react-map-gl';
@@ -35,20 +36,57 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
   useEffect(() => {
     if (!map) return;
 
+    // ── City ──────────────────────────────────────────────────────────────
     if (layer === 'city') {
       map.flyTo({ center: [CHICAGO.longitude, CHICAGO.latitude], zoom: CHICAGO.zoom, duration: 800 });
       onGeoJson(null);
       return;
     }
 
+    // ── Building — query Mapbox vector tile building footprint ────────────
     if (layer === 'building' && lat != null && lng != null) {
-      const poly = circle([lng, lat], 0.075, { steps: 48, units: 'kilometers' });
-      onGeoJson(poly);
-      const [w, s, e, n] = bbox(poly);
-      map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 800, maxZoom: 17 });
-      return;
+      map.flyTo({ center: [lng, lat], zoom: 17, duration: 800 });
+
+      let stale = false;
+      const onIdle = () => {
+        if (stale) return;
+        stale = true;
+        map.off('idle', onIdle);
+
+        const pt = map.project([lng, lat]);
+        // Query Mapbox dark-v11 building footprint layer at the point
+        const hits = map.queryRenderedFeatures(
+          [[pt.x - 6, pt.y - 6], [pt.x + 6, pt.y + 6]],
+          { layers: ['building'] }
+        );
+
+        if (hits.length > 0) {
+          // Pick the polygon with the most vertices (the primary structure)
+          const best = hits.reduce((a, b) => {
+            const ca = a.geometry?.coordinates?.[0]?.length ?? 0;
+            const cb = b.geometry?.coordinates?.[0]?.length ?? 0;
+            return cb > ca ? b : a;
+          });
+          onGeoJson(best);
+          const [w, s, e, n] = bbox(best);
+          map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 18 });
+        } else {
+          // Fallback: 75m circle when building tile data isn't available
+          const fallback = circle([lng, lat], 0.075, { steps: 48, units: 'kilometers' });
+          onGeoJson(fallback);
+          const [w, s, e, n] = bbox(fallback);
+          map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 17 });
+        }
+      };
+
+      map.on('idle', onIdle);
+      return () => {
+        stale = true;
+        map.off('idle', onIdle);
+      };
     }
 
+    // ── CCA — exact multipolygon from ccas table (migration 021) ──────────
     if (layer === 'cca') {
       if (ccaId != null) {
         getCcaGeojson(ccaId)
@@ -74,6 +112,7 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
       return;
     }
 
+    // ── Tract — exact multipolygon from tracts table (migration 021) ──────
     if (layer === 'tract') {
       if (tractGeoid != null) {
         getTractGeojson(tractGeoid)
