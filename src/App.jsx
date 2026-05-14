@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Breadcrumb from './components/Breadcrumb.jsx';
 import MapView from './components/MapView.jsx';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
@@ -21,6 +21,25 @@ export default function App() {
   const [pin, setPin] = useState(null);
   const [layer, setLayer] = useState('building');
   const [context, setContext] = useState({ cca: null, tract: null });
+  const [splitPct, setSplitPct] = useState(50);
+  const dragging = useRef(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 25), 75);
+      setSplitPct(pct);
+    };
+    const onUp = () => { dragging.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   const handleResult = useCallback(({ lat, lng, address }) => {
     const zip = /\b(\d{5})\b/.exec(address)?.[1] ?? null;
@@ -39,9 +58,9 @@ export default function App() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div ref={containerRef} className="flex h-screen overflow-hidden bg-bg select-none">
       {/* ── Left: scrollable data panel ── */}
-      <div className="w-1/2 overflow-y-auto">
+      <div style={{ width: `${splitPct}%` }} className="flex-shrink-0 overflow-y-auto">
         <div className="flex flex-col gap-4 p-6">
           <header className="glass-1 space-y-2 p-6 text-center">
             <div className="label-mono text-t2 text-xs">chicago · intel · v2</div>
@@ -94,8 +113,23 @@ export default function App() {
         </div>
       </div>
 
+      {/* ── Drag divider ── */}
+      <div
+        onMouseDown={(e) => { dragging.current = true; e.preventDefault(); }}
+        className="group relative flex w-2 flex-shrink-0 cursor-col-resize items-center justify-center bg-slate-200 transition-colors hover:bg-cyan/30 active:bg-cyan/50"
+      >
+        <div className="flex flex-col gap-[4px]">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <span
+              key={i}
+              className="block h-1 w-1 rounded-full bg-slate-400 transition-colors group-hover:bg-cyan group-active:bg-cyan"
+            />
+          ))}
+        </div>
+      </div>
+
       {/* ── Right: sticky Mapbox map ── */}
-      <div className="w-1/2 h-screen flex-shrink-0">
+      <div style={{ width: `${100 - splitPct}%` }} className="h-screen flex-shrink-0">
         <MapView
           layer={layer}
           lat={target.lat}
