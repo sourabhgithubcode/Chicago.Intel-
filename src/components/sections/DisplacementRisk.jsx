@@ -4,6 +4,7 @@
 
 import { TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Tooltip from '../Tooltip.jsx';
 import { getDisplacementAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
@@ -32,7 +33,9 @@ export default function DisplacementRisk({ lat, lng }) {
       <header className="flex items-center justify-between gap-3">
         <h3 className="display flex items-center gap-2 text-xl text-t0">
           <TrendingDown size={18} className="text-amber" />
-          Displacement risk
+          <Tooltip content="UC Berkeley's UDP typology — classifies each census tract by market pressure and likelihood of resident displacement">
+            <span className="cursor-help border-b border-dashed border-t0/30">Displacement risk</span>
+          </Tooltip>
         </h3>
         <ConfidenceTag
           score={6}
@@ -60,10 +63,16 @@ export default function DisplacementRisk({ lat, lng }) {
       {state.status === 'ok' && (
         <>
           <div className="flex items-baseline gap-3">
-            <span className="display text-3xl text-t0">
-              {state.data.typology}
+            <Tooltip content="UDP typology label for this tract: ranges from 'Stable' → 'At Risk' → 'Ongoing Displacement' → 'Advanced Exclusive'">
+              <span className="display cursor-help text-3xl text-t0 border-b border-dashed border-t0/30">
+                {state.data.typology}
+              </span>
+            </Tooltip>
+            <span className="text-t3 text-xs">
+              <Tooltip content="Census Tract GEOID — a unique Census Bureau ID for this ~4,000-resident statistical area">
+                <span className="cursor-help border-b border-dashed border-current">tract {state.data.geoid}</span>
+              </Tooltip>
             </span>
-            <span className="text-t3 text-xs">tract {state.data.geoid}</span>
           </div>
 
           <details className="text-t2">

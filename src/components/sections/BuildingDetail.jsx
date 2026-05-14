@@ -5,6 +5,7 @@
 
 import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
@@ -19,13 +20,18 @@ function relTime(iso) {
   return `synced ${Math.round(m / 60 / 24)}d ago`;
 }
 
-function Row({ icon: Icon, label, value, caveat }) {
+function Row({ icon: Icon, label, value, caveat, tooltip }) {
   if (value == null || value === '') return null;
+  const labelNode = tooltip ? (
+    <Tooltip content={tooltip}>
+      <span className="cursor-help border-b border-dashed border-current">{label}</span>
+    </Tooltip>
+  ) : label;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
       <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
         {Icon && <Icon size={11} />}
-        {label}
+        {labelNode}
       </span>
       <span className="text-t0 text-right">
         {value}
@@ -102,12 +108,18 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
         <>
           <div className="space-y-0">
             <Row icon={MapPin} label="address" value={state.data.address} />
-            <Row icon={Hash} label="pin" value={state.data.pin} />
+            <Row
+              icon={Hash}
+              label="pin"
+              value={state.data.pin}
+              tooltip="Property Index Number — Cook County's unique 14-digit ID for every parcel"
+            />
             <Row
               icon={User}
               label="owner"
               value={state.data.owner}
               caveat="taxpayer name; not beneficial owner"
+              tooltip="Taxpayer of record from the Assessor. Often an LLC or trust, not the actual individual owner."
             />
             <Row icon={Calendar} label="year built" value={state.data.year_built} />
             <Row
@@ -121,11 +133,17 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
                   : null
               }
             />
-            <Row icon={GraduationCap} label="elementary school" value={state.data.school_elem} />
+            <Row
+              icon={GraduationCap}
+              label="elementary school"
+              value={state.data.school_elem}
+              tooltip="Assigned CPS elementary school for this address per Cook County Assessor"
+            />
             <Row
               icon={Crosshair}
               label="distance to point"
               value={`${state.data.distance_m} m`}
+              tooltip="Meters from the parcel centroid to the exact coordinates you searched"
             />
           </div>
 

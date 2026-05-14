@@ -3,16 +3,22 @@
 
 import { Activity, Clock, DollarSign, LayoutGrid, Shield, Sparkles, TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Tooltip from '../Tooltip.jsx';
 import { getCcaById } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
-function Row({ icon: Icon, label, value }) {
+function Row({ icon: Icon, label, value, tooltip }) {
   if (value == null) return null;
+  const labelNode = tooltip ? (
+    <Tooltip content={tooltip}>
+      <span className="cursor-help border-b border-dashed border-current">{label}</span>
+    </Tooltip>
+  ) : label;
   return (
     <div className="flex items-center justify-between border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
       <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
         {Icon && <Icon size={11} />}
-        {label}
+        {labelNode}
       </span>
       <span className="text-t0">{value}</span>
     </div>
@@ -70,12 +76,38 @@ export default function CcaOverview({ ccaId }) {
               icon={DollarSign}
               label="Median rent (ACS)"
               value={state.data.rent_median ? `$${state.data.rent_median.toLocaleString()}/mo` : null}
+              tooltip="Median gross rent across all renter households in this Community Area — ACS 5-year estimate (2019–23)"
             />
-            <Row icon={Shield}       label="Safety score"      value={score(state.data.safety_score)} />
-            <Row icon={Activity}     label="Walk score"         value={score(state.data.walk_score)} />
-            <Row icon={Sparkles}     label="Vibe score"         value={score(state.data.vibe_score)} />
-            <Row icon={TrendingDown} label="Displacement score" value={score(state.data.disp_score)} />
-            <Row icon={Clock}        label="Data vintage"       value={state.data.data_vintage} />
+            <Row
+              icon={Shield}
+              label="Safety score"
+              value={score(state.data.safety_score)}
+              tooltip="Inverse of CPD crime incident rate within the CCA over 5 years. Higher = fewer incidents."
+            />
+            <Row
+              icon={Activity}
+              label="Walk score"
+              value={score(state.data.walk_score)}
+              tooltip="Walkability based on distance to transit stops, parks, and daily amenities"
+            />
+            <Row
+              icon={Sparkles}
+              label="Vibe score"
+              value={score(state.data.vibe_score)}
+              tooltip="Composite of nearby dining, coffee, and entertainment density from Yelp. Signal only — North Side bias."
+            />
+            <Row
+              icon={TrendingDown}
+              label="Displacement score"
+              value={score(state.data.disp_score)}
+              tooltip="Market pressure index from UC Berkeley's UDP typology. Higher = greater risk of resident displacement."
+            />
+            <Row
+              icon={Clock}
+              label="Data vintage"
+              value={state.data.data_vintage}
+              tooltip="The survey period this data covers. ACS 5-year estimates lag current conditions by 2–3 years."
+            />
           </div>
 
           <details className="text-t2">

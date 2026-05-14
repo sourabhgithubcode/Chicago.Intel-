@@ -1,10 +1,16 @@
 import { Building, Building2, Globe2, Map } from 'lucide-react';
+import Tooltip from './Tooltip.jsx';
 
 const LEVEL_ICONS = {
   city:     Globe2,
   cca:      Building,
   tract:    Map,
   building: Building2,
+};
+
+const LEVEL_TIPS = {
+  cca:   'Community Area — one of Chicago\'s 77 official neighborhood boundaries',
+  tract: 'Census Tract — a Census Bureau subdivision of ~4,000 residents used for demographic data',
 };
 
 const SEP = <span className="text-t3 select-none px-2 text-base">›</span>;
@@ -25,6 +31,13 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
         const isCurrent = i === currentIdx;
         const isClickable = i !== currentIdx;
         const Icon = LEVEL_ICONS[lvl.id];
+        const tip = LEVEL_TIPS[lvl.id];
+
+        const labelNode = tip ? (
+          <Tooltip content={tip}>
+            <span className="cursor-help border-b border-dashed border-current">{lvl.label}</span>
+          </Tooltip>
+        ) : lvl.label;
 
         return (
           <span key={lvl.id} className="flex items-center">
@@ -35,12 +48,12 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
                 className="flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-t2 transition-colors hover:bg-slate-100 hover:text-t0 active:bg-slate-200"
               >
                 <Icon size={13} />
-                {lvl.label}
+                {labelNode}
               </button>
             ) : (
               <span className="flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-sm font-semibold text-white">
                 <Icon size={13} />
-                {lvl.label}
+                {labelNode}
               </span>
             )}
           </span>
