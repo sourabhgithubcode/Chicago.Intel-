@@ -38,13 +38,13 @@ export default function SearchBar({ onResult, initialValue = '' }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="233 S Wacker Dr"
-          className="glass-3 text-t0 placeholder:text-t3 flex-1 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan/40"
+          className="glass-3 text-t0 placeholder:text-t3 flex-1 rounded-md px-3 py-2 text-sm outline-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-cyan/40"
           autoComplete="off"
         />
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="glass-3 text-t0 flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 rounded-md bg-cyan px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-40"
         >
           <Search size={14} />
           {busy ? 'Searching…' : 'Search'}

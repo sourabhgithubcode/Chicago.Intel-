@@ -63,4 +63,20 @@ body {
     font-weight: 800;
     letter-spacing: -0.02em;
   }
+
+  /* Accordion — "What this does not tell you" disclosures */
+  details > summary {
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin: 0 -6px;
+    transition: background 0.12s;
+  }
+  details > summary:hover {
+    background: rgba(15, 23, 42, 0.05);
+  }
+  details > summary:active {
+    background: rgba(15, 23, 42, 0.09);
+  }
 }

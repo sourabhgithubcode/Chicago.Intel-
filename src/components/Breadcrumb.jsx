@@ -32,13 +32,13 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
             {isClickable ? (
               <button
                 onClick={() => onLayerChange(lvl.id)}
-                className="flex items-center gap-1 text-sm font-medium text-cyan hover:text-t0 transition-colors underline underline-offset-2"
+                className="flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-t2 transition-colors hover:bg-slate-100 hover:text-t0 active:bg-slate-200"
               >
                 <Icon size={13} />
                 {lvl.label}
               </button>
             ) : (
-              <span className="flex items-center gap-1 text-sm font-semibold text-t0">
+              <span className="flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-sm font-semibold text-white">
                 <Icon size={13} />
                 {lvl.label}
               </span>
