@@ -1,15 +1,19 @@
 // CCA-level scores from the ccas table (ACS 2019-23 + CPD + Park District).
 // Shown when user clicks a CCA name in the breadcrumb.
 
+import { Activity, Clock, DollarSign, LayoutGrid, Shield, Sparkles, TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getCcaById } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
-function Row({ label, value }) {
+function Row({ icon: Icon, label, value }) {
   if (value == null) return null;
   return (
-    <div className="flex items-baseline justify-between border-t border-white/5 py-2">
-      <span className="label-mono text-t2 text-xs">{label}</span>
+    <div className="flex items-center justify-between border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+      <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+        {Icon && <Icon size={11} />}
+        {label}
+      </span>
       <span className="text-t0">{value}</span>
     </div>
   );
@@ -41,7 +45,8 @@ export default function CcaOverview({ ccaId }) {
   return (
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
-        <h3 className="display text-xl text-t0">
+        <h3 className="display flex items-center gap-2 text-xl text-t0">
+          <LayoutGrid size={18} className="text-cyan" />
           {state.status === 'ok' ? state.data.name : 'Neighborhood'}
         </h3>
         <ConfidenceTag
@@ -62,14 +67,15 @@ export default function CcaOverview({ ccaId }) {
         <>
           <div>
             <Row
+              icon={DollarSign}
               label="Median rent (ACS)"
               value={state.data.rent_median ? `$${state.data.rent_median.toLocaleString()}/mo` : null}
             />
-            <Row label="Safety score"      value={score(state.data.safety_score)} />
-            <Row label="Walk score"         value={score(state.data.walk_score)} />
-            <Row label="Vibe score"         value={score(state.data.vibe_score)} />
-            <Row label="Displacement score" value={score(state.data.disp_score)} />
-            <Row label="Data vintage"       value={state.data.data_vintage} />
+            <Row icon={Shield}       label="Safety score"      value={score(state.data.safety_score)} />
+            <Row icon={Activity}     label="Walk score"         value={score(state.data.walk_score)} />
+            <Row icon={Sparkles}     label="Vibe score"         value={score(state.data.vibe_score)} />
+            <Row icon={TrendingDown} label="Displacement score" value={score(state.data.disp_score)} />
+            <Row icon={Clock}        label="Data vintage"       value={state.data.data_vintage} />
           </div>
 
           <details className="text-t2">

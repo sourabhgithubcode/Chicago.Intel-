@@ -1,3 +1,5 @@
+import { AlertTriangle, Shield, ShieldCheck } from 'lucide-react';
+
 // Confidence badge — every data point in the UI must carry one.
 // Color encodes the trust band documented in CLAUDE.md:
 //   9–10/10 → lime  (verifiable in <5min)
@@ -5,21 +7,22 @@
 //   ≤6/10   → amber (directional / signal-only)
 
 const bandFor = (n) => {
-  if (n >= 9) return { color: 'text-lime', label: 'verified' };
-  if (n >= 7) return { color: 'text-cyan', label: 'strong' };
-  return { color: 'text-amber', label: 'signal' };
+  if (n >= 9) return { color: 'text-lime',  Icon: ShieldCheck,    label: 'verified' };
+  if (n >= 7) return { color: 'text-cyan',  Icon: Shield,         label: 'strong'   };
+  return            { color: 'text-amber', Icon: AlertTriangle,  label: 'signal'   };
 };
 
 export default function ConfidenceTag({ score, source }) {
-  const band = bandFor(score);
+  const { color, Icon, label } = bandFor(score);
   return (
     <span
-      className={`glass-3 label-mono inline-flex items-center gap-2 px-2.5 py-1 ${band.color}`}
+      className={`glass-3 label-mono inline-flex items-center gap-1.5 px-2.5 py-1 ${color}`}
       title={source ? `Source: ${source.label}` : undefined}
     >
+      <Icon size={11} />
       <span>{score}/10</span>
       <span className="text-t3">·</span>
-      <span>{band.label}</span>
+      <span>{label}</span>
       {source && (
         <>
           <span className="text-t3">·</span>

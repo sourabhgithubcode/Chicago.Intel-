@@ -2,6 +2,7 @@
 // also the canonical example of the data-display contract:
 //   value → source → confidence → caveats.
 
+import { Train } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getNearestCTAStop, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
@@ -49,7 +50,10 @@ export default function NearestCTAStop({ lat, lng }) {
   return (
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
-        <h3 className="display text-xl text-t0">Nearest CTA stop</h3>
+        <h3 className="display flex items-center gap-2 text-xl text-t0">
+          <Train size={18} className="text-cyan" />
+          Nearest CTA stop
+        </h3>
         <div className="flex items-center gap-2">
           <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
           <ConfidenceTag

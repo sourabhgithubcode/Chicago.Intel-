@@ -3,6 +3,7 @@
 // see src/lib/api/treasurer.js. Renders only when a pin is present;
 // BuildingDetail lifts its loaded pin up to App so this section can run.
 
+import { AlertCircle, Calendar, CheckCircle2, FileText, Receipt } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getTreasurerData } from '../../lib/api/treasurer.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
@@ -23,11 +24,14 @@ function relTime(iso) {
   return `synced ${Math.round(m / 60 / 24)}d ago`;
 }
 
-function Row({ label, value }) {
+function Row({ icon: Icon, label, value }) {
   if (value == null || value === '') return null;
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-white/5 py-2 first:border-t-0 first:pt-0">
-      <span className="label-mono text-t3 text-xs">{label}</span>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+      <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+        {Icon && <Icon size={11} />}
+        {label}
+      </span>
       <span className="text-t0 text-right">{value}</span>
     </div>
   );
@@ -64,7 +68,10 @@ export default function TaxBill({ pin }) {
   return (
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
-        <h3 className="display text-xl text-t0">Tax Bill</h3>
+        <h3 className="display flex items-center gap-2 text-xl text-t0">
+          <Receipt size={18} className="text-cyan" />
+          Tax Bill
+        </h3>
         <div className="flex items-center gap-2">
           <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
           <ConfidenceTag
@@ -94,10 +101,10 @@ export default function TaxBill({ pin }) {
       {state.status === 'ok' && (
         <>
           <div className="space-y-0">
-            <Row label="tax year" value={state.data.tax_year} />
-            <Row label="total billed" value={fmtMoney(state.data.total_billed)} />
-            <Row label="total paid" value={fmtMoney(state.data.total_paid)} />
-            <Row label="amount due" value={fmtMoney(state.data.amount_due)} />
+            <Row icon={Calendar} label="tax year" value={state.data.tax_year} />
+            <Row icon={FileText} label="total billed" value={fmtMoney(state.data.total_billed)} />
+            <Row icon={CheckCircle2} label="total paid" value={fmtMoney(state.data.total_paid)} />
+            <Row icon={AlertCircle} label="amount due" value={fmtMoney(state.data.amount_due)} />
           </div>
 
           <details className="text-t2">

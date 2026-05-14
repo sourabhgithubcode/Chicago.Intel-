@@ -3,6 +3,7 @@
 // 311-derived counters, landlord_score, and flood_zone are intentionally
 // absent until their pipelines land.
 
+import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
@@ -18,11 +19,14 @@ function relTime(iso) {
   return `synced ${Math.round(m / 60 / 24)}d ago`;
 }
 
-function Row({ label, value, caveat }) {
+function Row({ icon: Icon, label, value, caveat }) {
   if (value == null || value === '') return null;
   return (
-    <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-white/5 py-2 first:border-t-0 first:pt-0">
-      <span className="label-mono text-t3 text-xs">{label}</span>
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+      <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+        {Icon && <Icon size={11} />}
+        {label}
+      </span>
       <span className="text-t0 text-right">
         {value}
         {caveat && (
@@ -64,7 +68,10 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
   return (
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
-        <h3 className="display text-xl text-t0">Building</h3>
+        <h3 className="display flex items-center gap-2 text-xl text-t0">
+          <Building2 size={18} className="text-cyan" />
+          Building
+        </h3>
         <div className="flex items-center gap-2">
           <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
           <ConfidenceTag
@@ -94,15 +101,17 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
       {state.status === 'ok' && (
         <>
           <div className="space-y-0">
-            <Row label="address" value={state.data.address} />
-            <Row label="pin" value={state.data.pin} />
+            <Row icon={MapPin} label="address" value={state.data.address} />
+            <Row icon={Hash} label="pin" value={state.data.pin} />
             <Row
+              icon={User}
               label="owner"
               value={state.data.owner}
               caveat="taxpayer name; not beneficial owner"
             />
-            <Row label="year built" value={state.data.year_built} />
+            <Row icon={Calendar} label="year built" value={state.data.year_built} />
             <Row
+              icon={Landmark}
               label="last sale"
               value={
                 state.data.purchase_year
@@ -112,8 +121,9 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
                   : null
               }
             />
-            <Row label="elementary school" value={state.data.school_elem} />
+            <Row icon={GraduationCap} label="elementary school" value={state.data.school_elem} />
             <Row
+              icon={Crosshair}
               label="distance to point"
               value={`${state.data.distance_m} m`}
             />

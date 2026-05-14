@@ -1,7 +1,5 @@
-// Address search → geocode → parent receives {lat, lng, address}.
-// First user-visible interaction in the app — keep it boring.
-
 import { useState } from 'react';
+import { Search } from 'lucide-react';
 import { geocodeAddress } from '../../lib/api/geocode.js';
 
 export default function SearchBar({ onResult, initialValue = '' }) {
@@ -29,8 +27,8 @@ export default function SearchBar({ onResult, initialValue = '' }) {
   }
 
   return (
-    <form onSubmit={submit} className="glass-2 space-y-2 p-5">
-      <label className="label-mono text-t2 block text-xs" htmlFor="addr">
+    <form onSubmit={submit} className="glass-2 space-y-2 p-4">
+      <label className="label-mono text-t3 block text-xs" htmlFor="addr">
         chicago address
       </label>
       <div className="flex gap-2">
@@ -40,15 +38,16 @@ export default function SearchBar({ onResult, initialValue = '' }) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="233 S Wacker Dr"
-          className="glass-3 text-t0 placeholder-t3 flex-1 rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-cyan"
+          className="glass-3 text-t0 placeholder:text-t3 flex-1 rounded-md px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-cyan/40"
           autoComplete="off"
         />
         <button
           type="submit"
           disabled={busy || !query.trim()}
-          className="glass-3 text-t0 rounded-md px-4 py-2 font-medium hover:bg-white/10 disabled:opacity-50"
+          className="glass-3 text-t0 flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium hover:bg-slate-100 disabled:opacity-40 transition-colors"
         >
-          {busy ? '…' : 'Search'}
+          <Search size={14} />
+          {busy ? 'Searching…' : 'Search'}
         </button>
       </div>
       {err && <p className="text-rose text-xs">{err}</p>}

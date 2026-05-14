@@ -2,6 +2,7 @@
 // 8 categories spanning "Stable / Advanced Exclusive" → "Ongoing Displacement".
 // Vintage 2013–2018 ACS + 2012–2017 Zillow — confidence 6/10.
 
+import { TrendingDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { getDisplacementAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
@@ -29,7 +30,10 @@ export default function DisplacementRisk({ lat, lng }) {
   return (
     <section className="glass-2 space-y-3 p-5">
       <header className="flex items-center justify-between gap-3">
-        <h3 className="display text-xl text-t0">Displacement risk</h3>
+        <h3 className="display flex items-center gap-2 text-xl text-t0">
+          <TrendingDown size={18} className="text-amber" />
+          Displacement risk
+        </h3>
         <ConfidenceTag
           score={6}
           source={{
