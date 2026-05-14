@@ -2,6 +2,56 @@
 
 ---
 
+## Design Rules
+
+### Layout
+- Two-column layout: left 50% scrollable data panel, right 50% fixed Mapbox map
+- 4-layer breadcrumb navigation: **Chicago → CCA → Census Tract → Building**
+- Building is always the default layer after address search (most granular)
+- User zooms out via breadcrumb; breadcrumb levels are all clickable (back and forward)
+
+### Color & Contrast
+- Page canvas: `#EEF1F8` (light blue-grey)
+- Card surface: `#FFFFFF`
+- Text scale: `t0 #0F172A` / `t1 #1E293B` / `t2 #475569` / `t3 #64748B`
+- Accent: `cyan #2563EB` (primary), `lime #16A34A` (verified), `amber #D97706` (signal), `rose #E11D48`
+- All text must meet WCAG AA contrast on white (t3 = 4.6:1 minimum)
+
+### Cards & Components
+- `glass-1`: large container card (header), 16px radius, white, subtle shadow
+- `glass-2`: section card (data blocks), 10px radius
+- `glass-3`: inline badge / input / tag, `#F8FAFC` bg
+- `label-mono`: Fira Code, 11px, uppercase, `#475569`, used for row labels and source tags
+- `display`: Outfit 800, −0.02em tracking, used for section titles and big values
+- Row dividers: `border-t border-slate-100` (never `border-white/5` — invisible on light bg)
+
+### Icons
+- Use `lucide-react` consistently throughout; no mixing icon libraries
+- Section headers: 18px icon in `text-cyan` (or `text-amber` for risk sections)
+- Row labels: 11px icon inline with label text via `flex items-center gap-1.5`
+- ConfidenceTag: `ShieldCheck` (9-10/10 lime), `Shield` (7-8/10 cyan), `AlertTriangle` (≤6/10 amber)
+- Breadcrumb levels: `Globe2` city / `Building` CCA / `Map` tract / `Building2` building
+
+### Interactive States
+- Active breadcrumb level: dark filled pill `bg-slate-900 text-white px-2.5 py-1 rounded-md`
+- Inactive breadcrumb levels: `hover:bg-slate-100 hover:text-t0 active:bg-slate-200`
+- Primary action button (Search): solid `bg-cyan text-white`, `hover:bg-blue-700`, `active:scale-95`
+- Hover on any clickable element must produce visible feedback (bg or color change)
+- All `details > summary` accordions: bg highlight on hover via global CSS
+
+### Tooltips
+- Black background (`bg-slate-900`), white text, 12px, max 220px wide, arrow pointer
+- Trigger: dashed underline (`border-b border-dashed border-current`) + `cursor-help`
+- Use for: technical terms (PIN, Census Tract, CCA, displacement typology, score definitions)
+- Component: `src/components/Tooltip.jsx`
+
+### Confidence System
+- Every data point must carry a `ConfidenceTag` with score and source
+- 9-10/10 → lime "verified" | 7-8/10 → cyan "strong" | ≤6/10 → amber "signal"
+- Any score < 8/10 must have a "What this does not tell you" disclosure
+
+---
+
 ## Data Sources
 
 ### Live API — called per address query, results cached in Supabase
