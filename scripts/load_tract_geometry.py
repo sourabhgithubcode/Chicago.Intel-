@@ -9,6 +9,7 @@ NULL). No cron — tract boundaries change once per decennial census.
 """
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -19,6 +20,7 @@ from shapely.geometry.polygon import Polygon
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+from utils.bronze_store import write_bronze  # noqa: E402
 from utils.supabase_admin import get_admin_client  # noqa: E402
 
 URL = "https://data.cityofchicago.org/resource/74p9-q2aq.geojson"
@@ -28,6 +30,9 @@ def main() -> int:
     resp = requests.get(URL, timeout=60)
     resp.raise_for_status()
     features = resp.json().get("features", [])
+
+    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+    write_bronze("tract_geometry", run_id, iter(features))
 
     rows = []
     for feat in features:

@@ -1,63 +1,120 @@
 import { useCallback, useState } from 'react';
+import Breadcrumb from './components/Breadcrumb.jsx';
+import MapView from './components/MapView.jsx';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
+import CcaOverview from './components/sections/CcaOverview.jsx';
 import DisplacementRisk from './components/sections/DisplacementRisk.jsx';
 import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
 import SearchBar from './components/sections/SearchBar.jsx';
 import TaxBill from './components/sections/TaxBill.jsx';
+import { getCcaAt, getTractAt } from './lib/api/supabase.js';
 
-// Default coord: Willis Tower. Used until the user runs their first search.
 const DEFAULT = {
   lat: 41.8789,
   lng: -87.6359,
   address: '233 S Wacker Dr (default)',
+  zip: null,
 };
 
 export default function App() {
   const [target, setTarget] = useState(DEFAULT);
   const [pin, setPin] = useState(null);
+  const [layer, setLayer] = useState('building');
+  const [context, setContext] = useState({ cca: null, tract: null });
+
+  const handleResult = useCallback(({ lat, lng, address }) => {
+    const zip = /\b(\d{5})\b/.exec(address)?.[1] ?? null;
+    setTarget({ lat, lng, address, zip });
+    setPin(null);
+    setLayer('building');
+    // Resolve CCA + tract for breadcrumb labels and map polygons
+    Promise.all([
+      getCcaAt(lat, lng).catch(() => null),
+      getTractAt(lat, lng).catch(() => null),
+    ]).then(([cca, tract]) => setContext({ cca, tract }));
+  }, []);
 
   const handleBuildingLoaded = useCallback((b) => {
     setPin(b?.pin ?? null);
   }, []);
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-bg">
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0"
-        style={{
-          background:
-            'radial-gradient(40vw 40vw at 15% 20%, rgba(168,255,120,0.12), transparent 60%),' +
-            'radial-gradient(45vw 45vw at 85% 30%, rgba(56,189,248,0.12), transparent 60%),' +
-            'radial-gradient(50vw 50vw at 50% 90%, rgba(192,132,252,0.10), transparent 60%)',
-        }}
-      />
+    <div className="flex h-screen overflow-hidden bg-bg">
+      {/* ── Left: scrollable data panel ── */}
+      <div className="w-1/2 overflow-y-auto">
+        {/* Gradient blobs */}
+        <div
+          aria-hidden
+          className="pointer-events-none fixed left-0 top-0 w-1/2 h-full z-0"
+          style={{
+            background:
+              'radial-gradient(40vw 40vw at 10% 20%, rgba(168,255,120,0.08), transparent 60%),' +
+              'radial-gradient(35vw 35vw at 40% 80%, rgba(192,132,252,0.07), transparent 60%)',
+          }}
+        />
 
-      <div className="relative z-10 mx-auto flex min-h-screen max-w-3xl flex-col items-stretch gap-6 p-8">
-        <header className="glass-1 space-y-3 p-8 text-center">
-          <div className="label-mono text-t2">chicago · intel · v2</div>
-          <h1 className="display text-5xl text-t0">Chicago.Intel</h1>
-          <p className="text-t1 leading-relaxed">
-            Neighborhood intelligence for Chicago renters. Show the data, show
-            the source, show the confidence. Never tell anyone where to live.
-          </p>
-        </header>
+        <div className="relative z-10 flex flex-col gap-4 p-6">
+          <header className="glass-1 space-y-2 p-6 text-center">
+            <div className="label-mono text-t2 text-xs">chicago · intel · v2</div>
+            <h1 className="display text-4xl text-t0">Chicago.Intel</h1>
+            <p className="text-t2 text-sm leading-relaxed">
+              Neighborhood intelligence for Chicago renters.
+            </p>
+          </header>
 
-        <SearchBar onResult={setTarget} />
+          <Breadcrumb
+            layer={layer}
+            ccaName={context.cca?.name}
+            tractId={context.tract?.id}
+            address={target.address !== DEFAULT.address ? target.address : null}
+            onLayerChange={setLayer}
+          />
 
-        <div className="label-mono text-t3 text-center text-xs">
-          {target.address}
+          <SearchBar onResult={handleResult} />
+
+          {/* ── Layer-specific data sections ── */}
+          {layer === 'city' && (
+            <p className="text-t2 text-sm text-center py-8">
+              Search an address above to explore building-level intelligence.
+            </p>
+          )}
+
+          {layer === 'cca' && (
+            <CcaOverview ccaId={context.cca?.id} />
+          )}
+
+          {layer === 'tract' && (
+            <>
+              <NearestCTAStop lat={target.lat} lng={target.lng} />
+              <DisplacementRisk lat={target.lat} lng={target.lng} />
+            </>
+          )}
+
+          {layer === 'building' && (
+            <>
+              <BuildingDetail
+                lat={target.lat}
+                lng={target.lng}
+                onLoaded={handleBuildingLoaded}
+              />
+              <TaxBill pin={pin} />
+              <NearestCTAStop lat={target.lat} lng={target.lng} />
+              <DisplacementRisk lat={target.lat} lng={target.lng} />
+            </>
+          )}
         </div>
+      </div>
 
-        <BuildingDetail
+      {/* ── Right: sticky Mapbox map ── */}
+      <div className="w-1/2 h-screen flex-shrink-0">
+        <MapView
+          layer={layer}
           lat={target.lat}
           lng={target.lng}
-          onLoaded={handleBuildingLoaded}
+          ccaId={context.cca?.id}
+          tractGeoid={context.tract?.id}
         />
-        <TaxBill pin={pin} />
-        <NearestCTAStop lat={target.lat} lng={target.lng} />
-        <DisplacementRisk lat={target.lat} lng={target.lng} />
       </div>
-    </main>
+    </div>
   );
 }

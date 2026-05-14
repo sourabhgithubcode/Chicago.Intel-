@@ -126,6 +126,41 @@ export async function getDisplacementAt(lat, lng) {
   };
 }
 
+export async function getCcaAt(lat, lng) {
+  const rows = await rpc('cca_containing_point', { lat, lng });
+  if (!rows || rows.length === 0) return null;
+  return { id: rows[0].id, name: rows[0].name };
+}
+
+export async function getTractAt(lat, lng) {
+  const rows = await rpc('tract_containing_point', { lat, lng });
+  if (!rows || rows.length === 0) return null;
+  return { id: rows[0].id, name: rows[0].name, cca_id: rows[0].cca_id };
+}
+
+export async function getCcaGeojson(ccaId) {
+  const rows = await rpc('cca_geojson', { cca_id: ccaId });
+  if (!rows || rows.length === 0) return null;
+  return rows[0].cca_geojson ?? rows[0];
+}
+
+export async function getTractGeojson(geoid) {
+  const rows = await rpc('tract_geojson', { geoid });
+  if (!rows || rows.length === 0) return null;
+  return rows[0].tract_geojson ?? rows[0];
+}
+
+export async function getCcaById(ccaId) {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('ccas')
+    .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage')
+    .eq('id', ccaId)
+    .single();
+  if (error) throw new DatabaseError({ cause: error, meta: { ccaId } });
+  return data;
+}
+
 export async function getNearestCTAStop(lat, lng) {
   const rows = await rpc('nearest_cta', { lat, lng });
   if (!rows || rows.length === 0) return null;

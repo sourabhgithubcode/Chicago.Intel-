@@ -10,6 +10,7 @@ refreshed since 2018; periodic re-runs would just rewrite identical rows.
 import csv
 import io
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import requests
@@ -17,6 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+from utils.bronze_store import write_bronze  # noqa: E402
 from utils.supabase_admin import get_admin_client  # noqa: E402
 
 URL = (
@@ -29,9 +31,13 @@ def main() -> int:
     resp = requests.get(URL, timeout=30)
     resp.raise_for_status()
 
+    raw = list(csv.DictReader(io.StringIO(resp.text)))
+    run_id = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+    write_bronze("displacement_typology", run_id, ({"row": r} for r in raw))
+
     rows = [
         {"geoid": r["GEOID"].strip(), "typology": r["Typology"].strip()}
-        for r in csv.DictReader(io.StringIO(resp.text))
+        for r in raw
         if r.get("GEOID") and r.get("Typology")
     ]
 
