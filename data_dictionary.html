@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chicago.Intel — Data Dictionary</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --orange: #ffa657;
+    --teal: #39d353;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 24px 40px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; }
+  header h1 { font-size: 20px; font-weight: 700; color: var(--accent); }
+  header p { color: var(--muted); font-size: 13px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-batch { background: #1f3d5a; color: #58a6ff; }
+  .badge-live { background: #1f3d26; color: #3fb950; }
+  .badge-empty { background: #2d1f1f; color: #f85149; }
+
+  .layout { display: flex; min-height: calc(100vh - 73px); }
+
+  nav { width: 220px; min-width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 20px 0; position: sticky; top: 73px; height: calc(100vh - 73px); overflow-y: auto; }
+  nav h2 { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; padding: 0 16px 8px; }
+  nav a { display: block; padding: 6px 16px; color: var(--muted); text-decoration: none; font-size: 13px; border-left: 2px solid transparent; transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  nav a:hover { color: var(--text); background: var(--surface2); }
+  nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(88,166,255,.06); }
+  nav .section-label { padding: 16px 16px 4px; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; }
+
+  main { flex: 1; padding: 32px 40px; max-width: 1200px; }
+
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; margin-top: 40px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-header:first-child { margin-top: 0; }
+  .section-header h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 32px; overflow: hidden; }
+  .table-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .table-card-header h3 { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 15px; font-weight: 600; color: var(--text); }
+  .table-card-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .table-card-meta { display: flex; align-items: center; gap: 8px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .tab { padding: 10px 16px; font-size: 12px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { padding: 10px 16px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  td { padding: 10px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .col-name { font-family: 'SF Mono', 'Fira Code', monospace; color: var(--accent); font-size: 12px; }
+  .col-type { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+  .type-text { color: var(--green); }
+  .type-int { color: var(--orange); }
+  .type-numeric { color: var(--yellow); }
+  .type-bool { color: var(--purple); }
+  .type-timestamp { color: var(--teal); }
+  .type-geometry { color: #ff7b72; }
+  .type-jsonb { color: #d2a8ff; }
+  .type-array { color: #79c0ff; }
+
+  .note-warn { color: var(--yellow); }
+  .note-ok { color: var(--green); }
+
+  .sample-row { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; }
+  .sample-null { color: var(--muted); font-style: italic; }
+  .sample-num { color: var(--orange); }
+  .sample-str { color: var(--green); }
+  .sample-bool { color: var(--purple); }
+  .sample-geo { color: #ff7b72; }
+
+  .empty-state { padding: 32px; text-align: center; color: var(--muted); font-size: 13px; }
+  .empty-state span { font-size: 24px; display: block; margin-bottom: 8px; }
+
+  .stats-bar { display: flex; gap: 24px; padding: 12px 20px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-val { font-size: 18px; font-weight: 700; color: var(--text); }
+  .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+  @media (max-width: 768px) {
+    nav { display: none; }
+    main { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Chicago.Intel — Data Dictionary</h1>
+    <p>14 tables · 7 batch sources · 7 live API caches · Last pipeline run: May 12, 2026</p>
+  </div>
+</header>
+
+<div class="layout">
+<nav id="sidebar">
+  <div class="section-label">Batch (Silver)</div>
+  <a href="#buildings">buildings</a>
+  <a href="#cpd_incidents">cpd_incidents</a>
+  <a href="#complaints_311">complaints_311</a>
+  <a href="#cta_stops">cta_stops</a>
+  <a href="#parks">parks</a>
+  <a href="#streets">streets</a>
+  <a href="#tracts">tracts</a>
+  <a href="#ccas">ccas</a>
+  <a href="#building_permits">building_permits</a>
+  <a href="#displacement_typology">displacement_typology</a>
+  <a href="#building_footprints">building_footprints</a>
+  <a href="#snow_route_restrictions">snow_route_restrictions</a>
+  <a href="#winter_overnight_restrictions">winter_overnight_restrictions</a>
+  <a href="#parking_permit_zones">parking_permit_zones</a>
+  <a href="#school_boundaries">school_boundaries</a>
+  <a href="#pipeline_runs">pipeline_runs</a>
+  <div class="section-label">Gold Layer (MVs)</div>
+  <a href="#gold_address_intel">gold_address_intel</a>
+  <a href="#gold_cca_summary">gold_cca_summary</a>
+  <a href="#gold_tract_summary">gold_tract_summary</a>
+  <div class="section-label">Live API Caches</div>
+  <a href="#treasurer_cache">treasurer_cache</a>
+  <a href="#amenities_cache">amenities_cache</a>
+  <a href="#fema_cache">fema_cache</a>
+  <a href="#rent_cache">rent_cache</a>
+  <a href="#noise_cache">noise_cache</a>
+  <a href="#aqi_cache">aqi_cache</a>
+  <a href="#commute_cache">commute_cache</a>
+</nav>
+
+<main>
+
+<!-- ═══════════════════════ BATCH SECTION ═══════════════════════ -->
+<div class="section-header" id="batch-section">
+  <span class="badge badge-batch">BATCH</span>
+  <h2>Silver Tables — quarterly pipeline runs</h2>
+</div>
+
+<!-- BUILDINGS -->
+<div class="table-card" id="buildings">
+  <div class="table-card-header">
+    <div>
+      <h3>buildings</h3>
+      <p>Cook County Assessor parcels enriched with 311 complaint counts · Source: datacatalog.cookcountyil.gov · Confidence 9/10</p>
+    </div>
+    <div class="table-card-meta">
+      <span class="badge badge-batch">Assessor + 311</span>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'buildings-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'buildings-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="buildings-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">pin</td><td class="col-type type-text">text PK</td><td>14-digit Cook County parcel ID</td></tr>
+      <tr><td class="col-name">address</td><td class="col-type type-text">text</td><td>Raw assessor address string</td></tr>
+      <tr><td class="col-name">address_norm</td><td class="col-type type-text">text</td><td>Normalized for cross-source matching</td></tr>
+      <tr><td class="col-name">owner</td><td class="col-type type-text">text</td><td>Registered owner name</td></tr>
+      <tr><td class="col-name">year_built</td><td class="col-type type-int">int</td><td class="note-warn">⚠ Null in most rows — transformer gap</td></tr>
+      <tr><td class="col-name">purchase_year</td><td class="col-type type-int">int</td><td>Year of last arm's-length sale</td></tr>
+      <tr><td class="col-name">purchase_price</td><td class="col-type type-int">int</td><td>Last sale price in USD</td></tr>
+      <tr><td class="col-name">tax_current</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — enriched on-demand via Treasurer</td></tr>
+      <tr><td class="col-name">tax_annual</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — same</td></tr>
+      <tr><td class="col-name">violations_5yr</td><td class="col-type type-int">int</td><td>311 building violation count last 5 yrs</td></tr>
+      <tr><td class="col-name">heat_complaints</td><td class="col-type type-int">int</td><td>311 heat complaint count</td></tr>
+      <tr><td class="col-name">bug_reports</td><td class="col-type type-int">int</td><td>311 bed bug report count</td></tr>
+      <tr><td class="col-name">landlord_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — computed field not yet populated</td></tr>
+      <tr><td class="col-name">flood_zone</td><td class="col-type type-text">text</td><td class="note-warn">⚠ Null — written on first FEMA lookup</td></tr>
+      <tr><td class="col-name">flood_zone_at</td><td class="col-type type-timestamp">timestamptz</td><td>When flood zone was last cached</td></tr>
+      <tr><td class="col-name">school_elem</td><td class="col-type type-text">text</td><td>CPS elementary attendance zone name</td></tr>
+      <tr><td class="col-name">school_rating</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null</td></tr>
+      <tr><td class="col-name">rent_estimate</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — written on first RentCast lookup</td></tr>
+      <tr><td class="col-name">rent_estimate_at</td><td class="col-type type-timestamp">timestamptz</td><td>When rent estimate was cached</td></tr>
+      <tr><td class="col-name">street_id</td><td class="col-type type-text">text FK</td><td class="note-warn">⚠ Null — spatial join not yet run</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS EPSG:4326 point</td></tr>
+      <tr><td class="col-name">updated_at</td><td class="col-type type-timestamp">timestamptz</td><td>Row last modified</td></tr>
+    </table>
+  </div>
+  <div id="buildings-data" class="tab-content">
+    <table>
+      <tr><th>pin</th><th>address</th><th>owner</th><th>purchase_year</th><th>purchase_price</th><th>violations_5yr</th><th>school_elem</th></tr>
+      <tr class="sample-row">
+        <td><span class="sample-str">14052110151026</span></td>
+        <td><span class="sample-str">6121 N SHERIDAN RD 4J</span></td>
+        <td><span class="sample-str">DIMITRIS HATZIARAMIDIS</span></td>
+        <td><span class="sample-num">2019</span></td>
+        <td><span class="sample-num">$103,000</span></td>
+        <td><span class="sample-num">0</span></td>
+        <td><span class="sample-str">CPS - SWIFT</span></td>
+      </tr>
+      <tr class="sample-row">
+        <td><span class="sample-str">17032020631084</span></td>
+        <td><span class="sample-str">100 E BELLEVUE PL 32C</span></td>
+        <td><span class="sample-str">JAMES DINNEEN</span></td>
+        <td><span class="sample-num">2017</span></td>
+        <td><span class="sample-num">$565,000</span></td>
+        <td><span class="sample-num">0</span></td>
+        <td><span class="sample-str">CPS - OGDEN ES</span></td>
+      </tr>
+      <tr class="sample-row">
+        <td><span class="sample-str">17032130201034</span></td>
+        <td><span class="sample-str">159 E WALTON PL 15E</span></td>
+        <td><span class="sample-str">MYRNA E PEDERSEN</span></td>
+        <td><span class="sample-null">null</span></td>
+        <td><span class="sample-null">null</span></td>
+        <td><span class="sample-num">0</span></td>
+        <td><span class="sample-str">CPS - OGDEN ES</span></td>
+      </tr>
+      <tr class="sample-row">
+        <td><span class="sample-str">17032130201112</span></td>
+        <td><span class="sample-str">159 E WALTON PL 5F</span></td>
+        <td><span class="sample-str">159 WALTON LLC1904</span></td>
+        <td><span class="sample-num">2023</span></td>
+        <td><span class="sample-num">$400,000</span></td>
+        <td><span class="sample-num">0</span></td>
+        <td><span class="sample-str">CPS - OGDEN ES</span></td>
+      </tr>
+      <tr class="sample-row">
+        <td><span class="sample-str">17032210111019</span></td>
+        <td><span class="sample-str">222 E CHESTNUT ST 7D</span></td>
+        <td><span class="sample-str">CURTIS CARLSON</span></td>
+        <td><span class="sample-num">2020</span></td>
+        <td><span class="sample-num">$297,000</span></td>
+        <td><span class="sample-num">0</span></td>
+        <td><span class="sample-str">CPS - OGDEN ES</span></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- CPD INCIDENTS -->
+<div class="table-card" id="cpd_incidents">
+  <div class="table-card-header">
+    <div>
+      <h3>cpd_incidents</h3>
+      <p>Chicago Police Department crimes 2019–23 · Source: Chicago Data Portal ijzp-q8t2 · Confidence 7/10</p>
+    </div>
+    <span class="badge badge-batch">CPD</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'cpd-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'cpd-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="cpd-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>CPD case number</td></tr>
+      <tr><td class="col-name">iucr</td><td class="col-type type-text">text</td><td>Illinois Uniform Crime Reporting code (4-char)</td></tr>
+      <tr><td class="col-name">type</td><td class="col-type type-text">text</td><td><code>violent</code> / <code>property</code> / <code>other</code> — normalized bucket</td></tr>
+      <tr><td class="col-name">date</td><td class="col-type type-text">date</td><td>Incident date</td></tr>
+      <tr><td class="col-name">year</td><td class="col-type type-int">int</td><td>Extracted year (used for index filtering)</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS EPSG:4326 point — GIST indexed</td></tr>
+    </table>
+  </div>
+  <div id="cpd-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>iucr</th><th>type</th><th>date</th><th>year</th><th>location</th></tr>
+      <tr class="sample-row"><td><span class="sample-num">12755416</span></td><td><span class="sample-str">0810</span></td><td><span class="sample-str">other</span></td><td><span class="sample-str">2022-07-08</span></td><td><span class="sample-num">2022</span></td><td><span class="sample-geo">POINT(-87.670, 41.906)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">12756710</span></td><td><span class="sample-str">0810</span></td><td><span class="sample-str">other</span></td><td><span class="sample-str">2022-07-08</span></td><td><span class="sample-num">2022</span></td><td><span class="sample-geo">POINT(-87.720, 41.946)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">12756095</span></td><td><span class="sample-str">0910</span></td><td><span class="sample-str">property</span></td><td><span class="sample-str">2022-07-08</span></td><td><span class="sample-num">2022</span></td><td><span class="sample-geo">POINT(-87.606, 41.798)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">12755760</span></td><td><span class="sample-str">0620</span></td><td><span class="sample-str">property</span></td><td><span class="sample-str">2022-07-08</span></td><td><span class="sample-num">2022</span></td><td><span class="sample-geo">POINT(-87.667, 41.933)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">12755401</span></td><td><span class="sample-str">1365</span></td><td><span class="sample-str">other</span></td><td><span class="sample-str">2022-07-08</span></td><td><span class="sample-num">2022</span></td><td><span class="sample-geo">POINT(-87.686, 41.771)</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- COMPLAINTS 311 -->
+<div class="table-card" id="complaints_311">
+  <div class="table-card-header">
+    <div>
+      <h3>complaints_311</h3>
+      <p>Building violations, heat, bed bugs, rodent reports · Source: Chicago Data Portal v6vf-nfxy · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">311</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'c311-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'c311-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="c311-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">bigint PK</td><td>311 service request ID</td></tr>
+      <tr><td class="col-name">type</td><td class="col-type type-text">text</td><td>Complaint category string (e.g. "Rodent Baiting/Rat Complaint")</td></tr>
+      <tr><td class="col-name">address</td><td class="col-type type-text">text</td><td>Street address of complaint</td></tr>
+      <tr><td class="col-name">date</td><td class="col-type type-text">date</td><td>Request date</td></tr>
+      <tr><td class="col-name">address_norm</td><td class="col-type type-text">text</td><td class="note-warn">⚠ Null — cross-source normalization not run</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS EPSG:4326 — GIST indexed</td></tr>
+    </table>
+  </div>
+  <div id="c311-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>type</th><th>address</th><th>date</th></tr>
+      <tr class="sample-row"><td><span class="sample-num">2201705678</span></td><td><span class="sample-str">Rodent Baiting/Rat Complaint</span></td><td><span class="sample-str">3754 N CENTRAL PARK AVE</span></td><td><span class="sample-str">2022-09-26</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">2201708178</span></td><td><span class="sample-str">Rodent Baiting/Rat Complaint</span></td><td><span class="sample-str">3323 N PARIS AVE</span></td><td><span class="sample-str">2022-09-26</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">2201713782</span></td><td><span class="sample-str">Rodent Baiting/Rat Complaint</span></td><td><span class="sample-str">2138 W TOUHY AVE</span></td><td><span class="sample-str">2022-09-27</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">2201711887</span></td><td><span class="sample-str">Rodent Baiting/Rat Complaint</span></td><td><span class="sample-str">1010 S OAKLEY BLVD</span></td><td><span class="sample-str">2022-09-27</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">2201718576</span></td><td><span class="sample-str">Rodent Baiting/Rat Complaint</span></td><td><span class="sample-str">5121 S WESTERN BLVD</span></td><td><span class="sample-str">2022-09-28</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- CTA STOPS -->
+<div class="table-card" id="cta_stops">
+  <div class="table-card-header">
+    <div>
+      <h3>cta_stops</h3>
+      <p>All CTA bus + rail stops · Source: CTA GTFS transitchicago.com · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">CTA GTFS</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'cta-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'cta-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="cta-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>GTFS stop_id</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Stop name</td></tr>
+      <tr><td class="col-name">lines</td><td class="col-type type-array">text[]</td><td class="note-warn">⚠ Empty array — route assignment not wired yet</td></tr>
+      <tr><td class="col-name">accessible</td><td class="col-type type-bool">bool</td><td>ADA wheelchair accessible</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS EPSG:4326 — GIST indexed</td></tr>
+    </table>
+  </div>
+  <div id="cta-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>name</th><th>lines</th><th>accessible</th></tr>
+      <tr class="sample-row"><td><span class="sample-num">389</span></td><td><span class="sample-str">Madison & Menard</span></td><td><span class="sample-null">[]</span></td><td><span class="sample-bool">true</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">390</span></td><td><span class="sample-str">Madison & Waller</span></td><td><span class="sample-null">[]</span></td><td><span class="sample-bool">true</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">391</span></td><td><span class="sample-str">Madison & Parkside</span></td><td><span class="sample-null">[]</span></td><td><span class="sample-bool">true</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">394</span></td><td><span class="sample-str">Madison & Lotus</span></td><td><span class="sample-null">[]</span></td><td><span class="sample-bool">true</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">395</span></td><td><span class="sample-str">Madison & Long</span></td><td><span class="sample-null">[]</span></td><td><span class="sample-bool">true</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- PARKS -->
+<div class="table-card" id="parks">
+  <div class="table-card-header">
+    <div>
+      <h3>parks</h3>
+      <p>Chicago Park District boundaries · Source: ArcGIS Online services2.arcgis.com · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">Park District</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'parks-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'parks-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="parks-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>Park District park ID</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Park name</td></tr>
+      <tr><td class="col-name">acreage</td><td class="col-type type-numeric">numeric</td><td>Park size in acres</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS centroid point</td></tr>
+      <tr><td class="col-name">boundary</td><td class="col-type type-geometry">geometry(Polygon)</td><td>Full park boundary polygon</td></tr>
+    </table>
+  </div>
+  <div id="parks-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>name</th><th>acreage</th></tr>
+      <tr class="sample-row"><td><span class="sample-num">21</span></td><td><span class="sample-str">Washington (George)</span></td><td><span class="sample-num">350.49</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">100</span></td><td><span class="sample-str">Lincoln</span></td><td><span class="sample-num">1,209.98</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">204</span></td><td><span class="sample-str">Garfield</span></td><td><span class="sample-num">175.90</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">381</span></td><td><span class="sample-str">Grape</span></td><td><span class="sample-num">0.16</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">490</span></td><td><span class="sample-str">Ridge Park Wetlands</span></td><td><span class="sample-num">1.21</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- STREETS -->
+<div class="table-card" id="streets">
+  <div class="table-card-header">
+    <div>
+      <h3>streets</h3>
+      <p>Chicago street centerlines ~56K segments · Source: Chicago ArcGIS gisapps.cityofchicago.org · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City ArcGIS</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'streets-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'streets-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="streets-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-text">text PK</td><td>Centerline segment ID</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Street name (title case)</td></tr>
+      <tr><td class="col-name">name_norm</td><td class="col-type type-text">text</td><td>Lowercase normalized for matching</td></tr>
+      <tr><td class="col-name">from_addr</td><td class="col-type type-int">int</td><td>Address range start</td></tr>
+      <tr><td class="col-name">to_addr</td><td class="col-type type-int">int</td><td>Address range end</td></tr>
+      <tr><td class="col-name">cca_id</td><td class="col-type type-int">int FK</td><td class="note-warn">⚠ Null — spatial join to ccas not run</td></tr>
+      <tr><td class="col-name">tract_id</td><td class="col-type type-text">text FK</td><td class="note-warn">⚠ Null — spatial join to tracts not run</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(LineString)</td><td>PostGIS line segment</td></tr>
+    </table>
+  </div>
+  <div id="streets-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>name</th><th>from_addr</th><th>to_addr</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">115015</span></td><td><span class="sample-str">W 71St St</span></td><td><span class="sample-num">1301</span></td><td><span class="sample-num">1326</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">115090</span></td><td><span class="sample-str">W 84Th St</span></td><td><span class="sample-num">32</span></td><td><span class="sample-num">59</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">116424</span></td><td><span class="sample-str">S Union Ave</span></td><td><span class="sample-num">4347</span></td><td><span class="sample-num">4364</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">126512</span></td><td><span class="sample-str">S Homan Ave</span></td><td><span class="sample-num">1828</span></td><td><span class="sample-num">1831</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">126626</span></td><td><span class="sample-str">W 51St Pl</span></td><td><span class="sample-num">2300</span></td><td><span class="sample-num">2359</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- TRACTS -->
+<div class="table-card" id="tracts">
+  <div class="table-card-header">
+    <div>
+      <h3>tracts</h3>
+      <p>Census ACS 5-year estimates per tract · Source: Census Bureau ACS B25064, B19013, B01003 2019–23 · Confidence 6–8/10</p>
+    </div>
+    <span class="badge badge-batch">Census ACS</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'tracts-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'tracts-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="tracts-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-text">text PK</td><td>11-digit FIPS tract code (e.g. 17031320101)</td></tr>
+      <tr><td class="col-name">cca_id</td><td class="col-type type-int">int FK</td><td class="note-warn">⚠ Null — spatial join not run</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td class="note-warn">⚠ Null — not populated</td></tr>
+      <tr><td class="col-name">rent_median</td><td class="col-type type-int">int</td><td>Median gross rent $ (ACS B25064)</td></tr>
+      <tr><td class="col-name">rent_moe</td><td class="col-type type-int">int</td><td>Margin of error for rent estimate</td></tr>
+      <tr><td class="col-name">income_median</td><td class="col-type type-int">int</td><td>Median household income $ (ACS B19013)</td></tr>
+      <tr><td class="col-name">income_moe</td><td class="col-type type-int">int</td><td>MOE for income estimate</td></tr>
+      <tr><td class="col-name">vacancy_rate</td><td class="col-type type-numeric">numeric 0–1</td><td>Housing vacancy rate</td></tr>
+      <tr><td class="col-name">owner_occupied_pct</td><td class="col-type type-numeric">numeric 0–1</td><td>Owner-occupied housing share</td></tr>
+      <tr><td class="col-name">renter_occupied_pct</td><td class="col-type type-numeric">numeric 0–1</td><td>Renter-occupied housing share</td></tr>
+      <tr><td class="col-name">population</td><td class="col-type type-int">int</td><td>Total tract population (ACS B01003)</td></tr>
+      <tr><td class="col-name">safety_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — computed, not yet populated</td></tr>
+      <tr><td class="col-name">walk_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null</td></tr>
+      <tr><td class="col-name">disp_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — displacement risk score</td></tr>
+      <tr><td class="col-name">data_vintage</td><td class="col-type type-text">text</td><td>ACS vintage label e.g. "2019-23"</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(Polygon)</td><td>Tract boundary polygon</td></tr>
+    </table>
+  </div>
+  <div id="tracts-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>rent_median</th><th>rent_moe</th><th>income_median</th><th>vacancy_rate</th><th>renter_pct</th><th>population</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031842400</span></td><td><span class="sample-num">$998</span></td><td><span class="sample-num">±$305</span></td><td><span class="sample-num">$100,870</span></td><td><span class="sample-num">9.6%</span></td><td><span class="sample-num">37.6%</span></td><td><span class="sample-num">3,238</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031320101</span></td><td><span class="sample-num">$2,503</span></td><td><span class="sample-num">±$305</span></td><td><span class="sample-num">$129,221</span></td><td><span class="sample-num">13.3%</span></td><td><span class="sample-num">62.5%</span></td><td><span class="sample-num">9,208</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031320102</span></td><td><span class="sample-num">$2,462</span></td><td><span class="sample-num">±$560</span></td><td><span class="sample-num">$109,211</span></td><td><span class="sample-num">1.7%</span></td><td><span class="sample-num">77.2%</span></td><td><span class="sample-num">5,330</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031020902</span></td><td><span class="sample-num">$1,313</span></td><td><span class="sample-num">±$128</span></td><td><span class="sample-num">$47,963</span></td><td><span class="sample-num">9.2%</span></td><td><span class="sample-num">51.9%</span></td><td><span class="sample-num">4,205</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031030103</span></td><td><span class="sample-num">$1,209</span></td><td><span class="sample-num">±$120</span></td><td><span class="sample-num">$55,651</span></td><td><span class="sample-num">7.5%</span></td><td><span class="sample-num">72.6%</span></td><td><span class="sample-num">2,300</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- CCAS -->
+<div class="table-card" id="ccas">
+  <div class="table-card-header">
+    <div>
+      <h3>ccas</h3>
+      <p>77 Chicago Community Areas with composite scores · Source: City of Chicago + ACS · Confidence 7–9/10</p>
+    </div>
+    <span class="badge badge-batch">Community Areas</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'ccas-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'ccas-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="ccas-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>CCA number (1–77)</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Community area name</td></tr>
+      <tr><td class="col-name">rent_median</td><td class="col-type type-int">int</td><td class="note-warn">⚠ Null — aggregated from tracts, not yet computed</td></tr>
+      <tr><td class="col-name">safety_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — computed from CPD incidents</td></tr>
+      <tr><td class="col-name">walk_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null</td></tr>
+      <tr><td class="col-name">run_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null</td></tr>
+      <tr><td class="col-name">vibe_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — from Foursquare/Yelp</td></tr>
+      <tr><td class="col-name">disp_score</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null — displacement risk</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(Polygon)</td><td class="note-warn">⚠ Null — CCA boundary not yet loaded</td></tr>
+      <tr><td class="col-name">data_vintage</td><td class="col-type type-text">text</td><td>e.g. "2019-23"</td></tr>
+      <tr><td class="col-name">updated_at</td><td class="col-type type-timestamp">timestamptz</td><td>Row last modified</td></tr>
+    </table>
+  </div>
+  <div id="ccas-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>name</th><th>rent_median</th><th>safety_score</th><th>disp_score</th><th>data_vintage</th></tr>
+      <tr class="sample-row"><td><span class="sample-num">1</span></td><td><span class="sample-str">Rogers Park</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-str">2019-23</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">2</span></td><td><span class="sample-str">West Ridge</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-str">2019-23</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">3</span></td><td><span class="sample-str">Uptown</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-str">2019-23</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">4</span></td><td><span class="sample-str">Lincoln Square</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-str">2019-23</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-num">5</span></td><td><span class="sample-str">North Center</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-null">null</span></td><td><span class="sample-str">2019-23</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- BUILDING PERMITS -->
+<div class="table-card" id="building_permits">
+  <div class="table-card-header">
+    <div>
+      <h3>building_permits</h3>
+      <p>Chicago building permits 2020+ · Source: Chicago Data Portal · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City Portal</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'bp-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'bp-data')">Sample Data (3 rows)</div>
+  </div>
+  <div id="bp-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-text">text PK</td><td>City permit ID</td></tr>
+      <tr><td class="col-name">permit_type</td><td class="col-type type-text">text</td><td>Full permit type string</td></tr>
+      <tr><td class="col-name">category</td><td class="col-type type-text">text</td><td>Normalized: renovation / new_construction / demolition / other</td></tr>
+      <tr><td class="col-name">issue_date</td><td class="col-type type-timestamp">timestamptz</td><td>Permit issue date</td></tr>
+      <tr><td class="col-name">applied_at</td><td class="col-type type-timestamp">timestamptz</td><td>Application date</td></tr>
+      <tr><td class="col-name">pin</td><td class="col-type type-text">text FK</td><td class="note-warn">⚠ Null in many rows — PIN not always on permit record</td></tr>
+      <tr><td class="col-name">address</td><td class="col-type type-text">text</td><td>Permit address</td></tr>
+      <tr><td class="col-name">address_norm</td><td class="col-type type-text">text</td><td>Normalized for cross-source join</td></tr>
+      <tr><td class="col-name">reported_cost</td><td class="col-type type-numeric">numeric</td><td>Reported project cost USD</td></tr>
+      <tr><td class="col-name">permit_fee</td><td class="col-type type-numeric">numeric</td><td>Fee paid USD</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>PostGIS point</td></tr>
+    </table>
+  </div>
+  <div id="bp-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>permit_type</th><th>category</th><th>issue_date</th><th>address</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">3096495</span></td><td><span class="sample-str">PERMIT – EXPRESS PERMIT PROGRAM</span></td><td><span class="sample-str">other</span></td><td><span class="sample-str">2020-01-01</span></td><td><span class="sample-str">(see DB)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">3087247</span></td><td><span class="sample-str">PERMIT - RENOVATION/ALTERATION</span></td><td><span class="sample-str">renovation</span></td><td><span class="sample-str">2020-01-01</span></td><td><span class="sample-str">6914 S PAXTON AVE</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">3096488</span></td><td><span class="sample-str">PERMIT - EASY PERMIT PROCESS</span></td><td><span class="sample-str">other</span></td><td><span class="sample-str">2020-01-01</span></td><td><span class="sample-str">(see DB)</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- DISPLACEMENT TYPOLOGY -->
+<div class="table-card" id="displacement_typology">
+  <div class="table-card-header">
+    <div>
+      <h3>displacement_typology</h3>
+      <p>DePaul IHS gentrification/displacement stage per tract · Source: DePaul IHS + ACS time-series · Confidence 7/10</p>
+    </div>
+    <span class="badge badge-batch">DePaul IHS</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'disp-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'disp-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="disp-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">geoid</td><td class="col-type type-text">text PK</td><td>11-digit FIPS tract code — joins to tracts.id</td></tr>
+      <tr><td class="col-name">typology</td><td class="col-type type-text">text</td><td>Stage label: At Risk of Gentrification / Ongoing Displacement / Low-Income/Susceptible / Stable Moderate / etc.</td></tr>
+    </table>
+  </div>
+  <div id="disp-data" class="tab-content">
+    <table>
+      <tr><th>geoid</th><th>typology</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031835600</span></td><td><span class="sample-str">At Risk of Gentrification</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031836300</span></td><td><span class="sample-str">Ongoing Displacement</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031837300</span></td><td><span class="sample-str">Low-Income/Susceptible to Displacement</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031010100</span></td><td><span class="sample-str">(varies)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">17031010201</span></td><td><span class="sample-str">(varies)</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- BUILDING FOOTPRINTS -->
+<div class="table-card" id="building_footprints">
+  <div class="table-card-header">
+    <div>
+      <h3>building_footprints</h3>
+      <p>Physical building outline polygons (~84 MB, largest dataset) · Source: City of Chicago GIS · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City GIS</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'bf-schema')">Schema</div>
+  </div>
+  <div id="bf-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">bldg_id</td><td class="col-type type-int">int PK</td><td>City building identifier</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(Polygon)</td><td>Building footprint polygon — used for map zoom 16+ highlight</td></tr>
+    </table>
+    <div style="padding:12px 16px; font-size:12px; color:var(--muted);">⚠ Currently only bldg_id + geometry loaded — additional fields (height, stories, year_built) are in R2 bronze but not yet in the transformer schema.</div>
+  </div>
+</div>
+
+<!-- SNOW ROUTE RESTRICTIONS -->
+<div class="table-card" id="snow_route_restrictions">
+  <div class="table-card-header">
+    <div>
+      <h3>snow_route_restrictions</h3>
+      <p>Snow route parking ban segments · Source: Chicago Data Portal i6k4-giaj · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City Portal</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'snow-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'snow-data')">Sample Data (3 rows)</div>
+  </div>
+  <div id="snow-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>Auto-increment</td></tr>
+      <tr><td class="col-name">on_street</td><td class="col-type type-text">text</td><td>Street name with restriction</td></tr>
+      <tr><td class="col-name">from_street</td><td class="col-type type-text">text</td><td>Segment start cross street</td></tr>
+      <tr><td class="col-name">to_street</td><td class="col-type type-text">text</td><td>Segment end cross street</td></tr>
+      <tr><td class="col-name">restriction_type</td><td class="col-type type-text">text</td><td>Trigger threshold: "2 INCH" means ban activates after 2" snowfall</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(LineString)</td><td>Street segment geometry</td></tr>
+    </table>
+  </div>
+  <div id="snow-data" class="tab-content">
+    <table>
+      <tr><th>on_street</th><th>from_street</th><th>to_street</th><th>restriction_type</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">W 111TH ST</span></td><td><span class="sample-str">S VINCENNES AVE</span></td><td><span class="sample-str">S ST LAWRENCE AVE</span></td><td><span class="sample-str">2 INCH</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">S ASHLAND AVE</span></td><td><span class="sample-str">W 95TH ST</span></td><td><span class="sample-str">W ROSEHILL DR</span></td><td><span class="sample-str">2 INCH</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">W 35TH ST</span></td><td><span class="sample-str">S CALIFORNIA AVE</span></td><td><span class="sample-str">S MICHIGAN AVE</span></td><td><span class="sample-str">2 INCH</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- WINTER OVERNIGHT RESTRICTIONS -->
+<div class="table-card" id="winter_overnight_restrictions">
+  <div class="table-card-header">
+    <div>
+      <h3>winter_overnight_restrictions</h3>
+      <p>Winter overnight parking ban segments (3am–7am Dec–Apr) · Source: Chicago Data Portal mcad-r2g5 · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City Portal</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'wor-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'wor-data')">Sample Data (3 rows)</div>
+  </div>
+  <div id="wor-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>Auto-increment</td></tr>
+      <tr><td class="col-name">on_street</td><td class="col-type type-text">text</td><td>Street with overnight ban</td></tr>
+      <tr><td class="col-name">from_street</td><td class="col-type type-text">text</td><td>Segment start</td></tr>
+      <tr><td class="col-name">to_street</td><td class="col-type type-text">text</td><td>Segment end</td></tr>
+      <tr><td class="col-name">restriction_type</td><td class="col-type type-text">text</td><td>"OVERNIGHT" — active 3am–7am Dec 1 – Apr 1</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(LineString)</td><td>Street segment geometry</td></tr>
+    </table>
+  </div>
+  <div id="wor-data" class="tab-content">
+    <table>
+      <tr><th>on_street</th><th>from_street</th><th>to_street</th><th>restriction_type</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">N KEDZIE AVE</span></td><td><span class="sample-str">W NORTH AVE</span></td><td><span class="sample-str">W 87TH ST</span></td><td><span class="sample-str">OVERNIGHT</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">S DR MARTIN LUTHER KING JR DR</span></td><td><span class="sample-str">E CERMAK RD</span></td><td><span class="sample-str">E GARFIELD BLVD</span></td><td><span class="sample-str">OVERNIGHT</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">E MIDWAY PLAISANCE</span></td><td><span class="sample-str">S COTTAGE GROVE AVE</span></td><td><span class="sample-str">S DORCHESTER AVE</span></td><td><span class="sample-str">OVERNIGHT</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- PARKING PERMIT ZONES -->
+<div class="table-card" id="parking_permit_zones">
+  <div class="table-card-header">
+    <div>
+      <h3>parking_permit_zones</h3>
+      <p>Chicago residential parking permit zones by street segment · Source: Chicago Data Portal u9xt-hiju · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">City Portal</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'ppz-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'ppz-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="ppz-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-text">text PK</td><td>City permit zone segment ID</td></tr>
+      <tr><td class="col-name">zone</td><td class="col-type type-text">text</td><td>Zone number (e.g. "143", "2493")</td></tr>
+      <tr><td class="col-name">street_name</td><td class="col-type type-text">text</td><td>Street name (uppercase)</td></tr>
+      <tr><td class="col-name">street_direction</td><td class="col-type type-text">text</td><td>N / S / E / W</td></tr>
+      <tr><td class="col-name">street_type</td><td class="col-type type-text">text</td><td>AVE / ST / BLVD / etc.</td></tr>
+      <tr><td class="col-name">address_low</td><td class="col-type type-int">int</td><td>Address range start</td></tr>
+      <tr><td class="col-name">address_high</td><td class="col-type type-int">int</td><td>Address range end</td></tr>
+      <tr><td class="col-name">odd_even</td><td class="col-type type-text">text</td><td>O = odd side, E = even side of street</td></tr>
+      <tr><td class="col-name">ward</td><td class="col-type type-int">int</td><td>City ward number</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type type-text">text</td><td>ACTIVE / INACTIVE</td></tr>
+    </table>
+  </div>
+  <div id="ppz-data" class="tab-content">
+    <table>
+      <tr><th>id</th><th>zone</th><th>street</th><th>addr_low</th><th>addr_high</th><th>odd_even</th><th>ward</th><th>status</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">14735</span></td><td><span class="sample-str">143</span></td><td><span class="sample-str">N KENMORE AVE</span></td><td><span class="sample-num">1856</span></td><td><span class="sample-num">1856</span></td><td><span class="sample-str">E</span></td><td><span class="sample-num">43</span></td><td><span class="sample-str">ACTIVE</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14734</span></td><td><span class="sample-str">1608</span></td><td><span class="sample-str">E 48TH ST</span></td><td><span class="sample-num">430</span></td><td><span class="sample-num">450</span></td><td><span class="sample-str">E</span></td><td><span class="sample-num">3</span></td><td><span class="sample-str">ACTIVE</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14733</span></td><td><span class="sample-str">1608</span></td><td><span class="sample-str">E 48TH ST</span></td><td><span class="sample-num">417</span></td><td><span class="sample-num">451</span></td><td><span class="sample-str">O</span></td><td><span class="sample-num">3</span></td><td><span class="sample-str">ACTIVE</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14714</span></td><td><span class="sample-str">2493</span></td><td><span class="sample-str">W HURLBUT ST</span></td><td><span class="sample-num">6701</span></td><td><span class="sample-num">6799</span></td><td><span class="sample-str">O</span></td><td><span class="sample-num">41</span></td><td><span class="sample-str">ACTIVE</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14713</span></td><td><span class="sample-str">2493</span></td><td><span class="sample-str">W HURLBUT ST</span></td><td><span class="sample-num">6700</span></td><td><span class="sample-num">6798</span></td><td><span class="sample-str">E</span></td><td><span class="sample-num">41</span></td><td><span class="sample-str">ACTIVE</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- SCHOOL BOUNDARIES -->
+<div class="table-card" id="school_boundaries">
+  <div class="table-card-header">
+    <div>
+      <h3>school_boundaries</h3>
+      <p>CPS elementary school attendance boundaries · Source: Chicago Data Portal 5ihw-cbdn (R2 key: cps_elementary_boundaries) · Confidence 9/10</p>
+    </div>
+    <span class="badge badge-batch">CPS / City Portal</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'sb-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'sb-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="sb-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">school_id</td><td class="col-type type-text">text PK</td><td>CPS school identifier</td></tr>
+      <tr><td class="col-name">rcdts</td><td class="col-type type-text">text</td><td class="note-warn">⚠ Null — state RCDTS code not populated</td></tr>
+      <tr><td class="col-name">school_name</td><td class="col-type type-text">text</td><td>School name (uppercase)</td></tr>
+      <tr><td class="col-name">grade_category</td><td class="col-type type-text">text</td><td>ES = elementary, HS = high school</td></tr>
+      <tr><td class="col-name">school_year</td><td class="col-type type-text">text</td><td>Grade levels served (e.g. "K, 1, 2, 3, 4, 5, 6, 7, 8")</td></tr>
+      <tr><td class="col-name">boundary</td><td class="col-type type-geometry">geometry(Polygon)</td><td>Attendance zone boundary — used for buildings.school_elem lookup</td></tr>
+    </table>
+  </div>
+  <div id="sb-data" class="tab-content">
+    <table>
+      <tr><th>school_id</th><th>school_name</th><th>grade_category</th><th>school_year</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">609959</span></td><td><span class="sample-str">HAINES</span></td><td><span class="sample-str">ES</span></td><td><span class="sample-str">K, 1–8</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">610199</span></td><td><span class="sample-str">COLEMON</span></td><td><span class="sample-str">ES</span></td><td><span class="sample-str">K, 1–8</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">609795</span></td><td><span class="sample-str">CLARK ES</span></td><td><span class="sample-str">ES</span></td><td><span class="sample-str">K, 1–8</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">610048</span></td><td><span class="sample-str">MANIERRE</span></td><td><span class="sample-str">ES</span></td><td><span class="sample-str">K, 1–8</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">610369</span></td><td><span class="sample-str">JACKSON M</span></td><td><span class="sample-str">ES</span></td><td><span class="sample-str">K, 1–8</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- PIPELINE RUNS -->
+<div class="table-card" id="pipeline_runs">
+  <div class="table-card-header">
+    <div>
+      <h3>pipeline_runs</h3>
+      <p>Metadata log for each orchestrator execution · Used by frontend sync status indicator</p>
+    </div>
+    <span class="badge badge-empty">Internal metadata</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'pr-schema')">Schema</div>
+  </div>
+  <div id="pr-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">run_id</td><td class="col-type type-text">text PK</td><td>Format: "YYYYMMDDTHHmmss_source"</td></tr>
+      <tr><td class="col-name">source</td><td class="col-type type-text">text</td><td>cpd / 311 / assessor / etc.</td></tr>
+      <tr><td class="col-name">status</td><td class="col-type type-text">text</td><td>success / failed</td></tr>
+      <tr><td class="col-name">mode</td><td class="col-type type-text">text</td><td>bronze_only / full</td></tr>
+      <tr><td class="col-name">rows_in</td><td class="col-type type-int">int</td><td>Rows fetched from source</td></tr>
+      <tr><td class="col-name">rows_upserted</td><td class="col-type type-int">int</td><td>Rows written to silver table</td></tr>
+      <tr><td class="col-name">started_at</td><td class="col-type type-timestamp">timestamptz</td><td>Run start time</td></tr>
+      <tr><td class="col-name">completed_at</td><td class="col-type type-timestamp">timestamptz</td><td>Run end time</td></tr>
+      <tr><td class="col-name">sources</td><td class="col-type type-array">text[]</td><td>Array of source names in this run</td></tr>
+      <tr><td class="col-name">row_counts</td><td class="col-type type-jsonb">jsonb</td><td>Per-source row counts map</td></tr>
+    </table>
+    <div class="empty-state"><span>📋</span>Currently empty — populated by orchestrator on next run in non-bronze-only mode</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ GOLD SECTION ═══════════════════════ -->
+<div class="section-header" id="gold-section">
+  <span class="badge" style="background:#2d1f3d;color:#bc8cff;">GOLD</span>
+  <h2>Materialized Views — what the frontend queries</h2>
+</div>
+
+<!-- GOLD ADDRESS INTEL -->
+<div class="table-card" id="gold_address_intel">
+  <div class="table-card-header">
+    <div>
+      <h3>gold_address_intel</h3>
+      <p>Per-building aggregated view joining buildings + cpd + 311 + tracts + ccas · Frontend primary query target · Currently empty (silver not fully loaded)</p>
+    </div>
+    <span class="badge" style="background:#2d1f3d;color:#bc8cff;">Materialized View</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'gai-schema')">Schema</div>
+  </div>
+  <div id="gai-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">pin</td><td class="col-type type-text">text</td><td>Building parcel ID — primary lookup key</td></tr>
+      <tr><td class="col-name">address</td><td class="col-type type-text">text</td><td>Street address</td></tr>
+      <tr><td class="col-name">address_norm</td><td class="col-type type-text">text</td><td>Normalized — indexed for fast address search</td></tr>
+      <tr><td class="col-name">owner</td><td class="col-type type-text">text</td><td>Registered owner</td></tr>
+      <tr><td class="col-name">purchase_year / purchase_price</td><td class="col-type type-int">int</td><td>Last sale data from Assessor</td></tr>
+      <tr><td class="col-name">violations_5yr / heat_complaints / bug_reports</td><td class="col-type type-int">int</td><td>311 complaint counts</td></tr>
+      <tr><td class="col-name">cca_id / cca_name</td><td class="col-type type-text">text</td><td>Community area from spatial join</td></tr>
+      <tr><td class="col-name">tract_id</td><td class="col-type type-text">text</td><td>Census tract from spatial join</td></tr>
+      <tr><td class="col-name">rent_median / safety_score / disp_score</td><td class="col-type type-numeric">numeric</td><td>Rolled up from tracts silver table</td></tr>
+      <tr><td class="col-name">violent_1yr / property_1yr</td><td class="col-type type-int">int</td><td>CPD crime counts within 0.25mi, last 1yr</td></tr>
+      <tr><td class="col-name">location</td><td class="col-type type-geometry">geometry(Point)</td><td>GIST indexed</td></tr>
+      <tr><td class="col-name">refreshed_at</td><td class="col-type type-timestamp">timestamptz</td><td>Last MV refresh time</td></tr>
+    </table>
+    <div class="empty-state"><span>🏗</span>Empty — refreshed after silver tables are fully loaded (data load freeze in place)</div>
+  </div>
+</div>
+
+<!-- GOLD CCA SUMMARY -->
+<div class="table-card" id="gold_cca_summary">
+  <div class="table-card-header">
+    <div>
+      <h3>gold_cca_summary</h3>
+      <p>Per-community-area aggregated scores · Powers the map CCA polygon layer · Confidence 7–9/10</p>
+    </div>
+    <span class="badge" style="background:#2d1f3d;color:#bc8cff;">Materialized View</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'gcca-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'gcca-data')">Sample Data</div>
+  </div>
+  <div id="gcca-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>CCA number 1–77</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Community area name</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(Polygon)</td><td>CCA boundary — GIST indexed</td></tr>
+      <tr><td class="col-name">rent_median</td><td class="col-type type-int">int</td><td>Median rent $ aggregated from tracts</td></tr>
+      <tr><td class="col-name">safety_score</td><td class="col-type type-numeric">numeric</td><td>Computed from CPD incidents</td></tr>
+      <tr><td class="col-name">walk_score</td><td class="col-type type-numeric">numeric</td><td>Walkability score</td></tr>
+      <tr><td class="col-name">disp_score</td><td class="col-type type-numeric">numeric</td><td>Displacement risk score</td></tr>
+      <tr><td class="col-name">building_count</td><td class="col-type type-int">int</td><td>Number of parcel records in CCA</td></tr>
+      <tr><td class="col-name">avg_landlord_score</td><td class="col-type type-numeric">numeric</td><td>Average landlord score across buildings</td></tr>
+      <tr><td class="col-name">delinquent_buildings</td><td class="col-type type-int">int</td><td>Count of buildings with tax amount_due &gt; 0</td></tr>
+      <tr><td class="col-name">violent_1yr</td><td class="col-type type-int">int</td><td>Violent CPD incidents in CCA last 1yr</td></tr>
+      <tr><td class="col-name">refreshed_at</td><td class="col-type type-timestamp">timestamptz</td><td>Last MV refresh</td></tr>
+    </table>
+  </div>
+  <div id="gcca-data" class="tab-content">
+    <div class="empty-state"><span>🗺</span>Rows exist but all score columns are null — MV refresh needed after silver is fully loaded</div>
+  </div>
+</div>
+
+<!-- GOLD TRACT SUMMARY -->
+<div class="table-card" id="gold_tract_summary">
+  <div class="table-card-header">
+    <div>
+      <h3>gold_tract_summary</h3>
+      <p>Per-census-tract aggregated scores · Powers the map tract polygon layer · Confidence 6–8/10</p>
+    </div>
+    <span class="badge" style="background:#2d1f3d;color:#bc8cff;">Materialized View</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'gtr-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'gtr-data')">Sample Data</div>
+  </div>
+  <div id="gtr-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-text">text PK</td><td>11-digit FIPS tract code</td></tr>
+      <tr><td class="col-name">cca_id</td><td class="col-type type-int">int FK</td><td>Parent community area</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Tract name</td></tr>
+      <tr><td class="col-name">geometry</td><td class="col-type type-geometry">geometry(Polygon)</td><td>Tract boundary — GIST indexed</td></tr>
+      <tr><td class="col-name">rent_median / rent_moe</td><td class="col-type type-int">int</td><td>ACS median rent + margin of error</td></tr>
+      <tr><td class="col-name">safety_score</td><td class="col-type type-numeric">numeric</td><td>From CPD incidents spatial join</td></tr>
+      <tr><td class="col-name">walk_score</td><td class="col-type type-numeric">numeric</td><td>Walkability</td></tr>
+      <tr><td class="col-name">population</td><td class="col-type type-int">int</td><td>ACS total population</td></tr>
+      <tr><td class="col-name">disp_score</td><td class="col-type type-numeric">numeric</td><td>Displacement risk</td></tr>
+      <tr><td class="col-name">building_count</td><td class="col-type type-int">int</td><td>Buildings in tract</td></tr>
+      <tr><td class="col-name">avg_landlord_score</td><td class="col-type type-numeric">numeric</td><td>Average landlord score</td></tr>
+      <tr><td class="col-name">refreshed_at</td><td class="col-type type-timestamp">timestamptz</td><td>Last MV refresh</td></tr>
+    </table>
+  </div>
+  <div id="gtr-data" class="tab-content">
+    <div class="empty-state"><span>🗺</span>Rows exist but score columns are null — populated after silver load + MV refresh</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════ LIVE API SECTION ═══════════════════════ -->
+<div class="section-header" id="live-section">
+  <span class="badge badge-live">LIVE API</span>
+  <h2>Cache Tables — on-demand per address/coordinate</h2>
+</div>
+
+<!-- TREASURER CACHE -->
+<div class="table-card" id="treasurer_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>treasurer_cache</h3>
+      <p>Cook County tax bill per PIN · Source: cookcountytreasurer.com (scraped) · TTL 30 days · 4 rows cached</p>
+    </div>
+    <span class="badge badge-live">Live Scrape</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'treas-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'treas-data')">All 4 rows</div>
+  </div>
+  <div id="treas-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">pin</td><td class="col-type type-text">text PK</td><td>14-digit parcel ID</td></tr>
+      <tr><td class="col-name">tax_year</td><td class="col-type type-int">int</td><td>Tax bill year</td></tr>
+      <tr><td class="col-name">total_billed</td><td class="col-type type-numeric">numeric</td><td>Total tax billed in USD</td></tr>
+      <tr><td class="col-name">total_paid</td><td class="col-type type-numeric">numeric</td><td class="note-warn">⚠ Null in all rows — CCT doesn't expose paid amount cleanly</td></tr>
+      <tr><td class="col-name">amount_due</td><td class="col-type type-numeric">numeric</td><td>Outstanding balance USD</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 30d TTL</td></tr>
+    </table>
+  </div>
+  <div id="treas-data" class="tab-content">
+    <table>
+      <tr><th>pin</th><th>tax_year</th><th>total_billed</th><th>amount_due</th><th>fetched_at</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">17162160090000</span></td><td><span class="sample-num">2023</span></td><td><span class="sample-num">$53,338,290</span></td><td><span class="sample-num">$0.00</span></td><td><span class="sample-str">2026-05-11</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14203290310000</span></td><td><span class="sample-num">2023</span></td><td><span class="sample-num">$19,532</span></td><td><span class="sample-num">$0.00</span></td><td><span class="sample-str">2026-05-11</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14173140280000</span></td><td><span class="sample-num">2023</span></td><td><span class="sample-num">$17,407</span></td><td><span class="sample-num">$0.00</span></td><td><span class="sample-str">2026-05-11</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">14174150441003</span></td><td><span class="sample-num">2023</span></td><td><span class="sample-num">$6,052</span></td><td><span class="sample-num">$0.00</span></td><td><span class="sample-str">2026-05-14</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- AMENITIES CACHE -->
+<div class="table-card" id="amenities_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>amenities_cache</h3>
+      <p>Google Places + Foursquare nearby POIs · Source: Google Places API v1 / Foursquare v4 · TTL 30 days</p>
+    </div>
+    <span class="badge badge-live">Google Places</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'amen-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'amen-data')">Sample Data (5 rows)</div>
+  </div>
+  <div id="amen-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">id</td><td class="col-type type-int">int PK</td><td>Auto-increment</td></tr>
+      <tr><td class="col-name">address_key</td><td class="col-type type-text">text</td><td>Cache key: "lat4dp,lng4dp"</td></tr>
+      <tr><td class="col-name">category</td><td class="col-type type-text">text</td><td>grocery / gym / pharmacy / coffee / restaurant / park / bank / laundry / fsq_vibe</td></tr>
+      <tr><td class="col-name">name</td><td class="col-type type-text">text</td><td>Place display name</td></tr>
+      <tr><td class="col-name">distance_m</td><td class="col-type type-int">int</td><td>Meters from search point (planar approximation)</td></tr>
+      <tr><td class="col-name">price_level</td><td class="col-type type-int">int 0–4</td><td>0=free, 1=inexpensive, 2=moderate, 3=expensive, 4=very expensive · null if unknown</td></tr>
+      <tr><td class="col-name">place_id</td><td class="col-type type-text">text</td><td>Google Place ID or Foursquare fsq_place_id</td></tr>
+      <tr><td class="col-name">cached_at</td><td class="col-type type-timestamp">timestamptz</td><td>Insert time</td></tr>
+      <tr><td class="col-name">expires_at</td><td class="col-type type-timestamp">timestamptz</td><td>Expiry (cached_at + 30d)</td></tr>
+    </table>
+  </div>
+  <div id="amen-data" class="tab-content">
+    <table>
+      <tr><th>address_key</th><th>category</th><th>name</th><th>distance_m</th><th>price_level</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-str">grocery</span></td><td><span class="sample-str">South Loop Market - Van Buren</span></td><td><span class="sample-num">278m</span></td><td><span class="sample-null">null</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-str">grocery</span></td><td><span class="sample-str">Foxtrot</span></td><td><span class="sample-num">43m</span></td><td><span class="sample-num">2 (moderate)</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-str">grocery</span></td><td><span class="sample-str">Purmedica Nutritional Science</span></td><td><span class="sample-num">2m</span></td><td><span class="sample-null">null</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-str">grocery</span></td><td><span class="sample-str">MUNCHIES INC</span></td><td><span class="sample-num">372m</span></td><td><span class="sample-null">null</span></td></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-str">grocery</span></td><td><span class="sample-str">Organics Delivered</span></td><td><span class="sample-num">159m</span></td><td><span class="sample-null">null</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- FEMA CACHE -->
+<div class="table-card" id="fema_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>fema_cache</h3>
+      <p>FEMA flood zone per coordinate · Source: FEMA NFHL ArcGIS MapServer · TTL 1 year</p>
+    </div>
+    <span class="badge badge-empty">0 rows — not called yet</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'fema-schema')">Schema</div>
+  </div>
+  <div id="fema-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">coord_key</td><td class="col-type type-text">text PK</td><td>"lat4dp,lng4dp" cache key</td></tr>
+      <tr><td class="col-name">flood_zone</td><td class="col-type type-text">text</td><td>X / A / AE / AH / AO / V / VE</td></tr>
+      <tr><td class="col-name">zone_subtype</td><td class="col-type type-text">text</td><td>Detailed subtype string (e.g. "OUTSIDE MAPPED FLOOD HAZARD AREA")</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 1yr TTL</td></tr>
+    </table>
+    <div class="empty-state"><span>🌊</span>No rows yet — called on first building lookup in prod</div>
+  </div>
+</div>
+
+<!-- RENT CACHE -->
+<div class="table-card" id="rent_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>rent_cache</h3>
+      <p>RentCast AVM rent estimate per PIN · Source: api.rentcast.io (paid) · TTL 30 days</p>
+    </div>
+    <span class="badge badge-empty">0 rows — API key not set</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'rent-schema')">Schema</div>
+  </div>
+  <div id="rent-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">pin</td><td class="col-type type-text">text</td><td>14-digit parcel ID</td></tr>
+      <tr><td class="col-name">bedrooms</td><td class="col-type type-int">int</td><td>Bedroom count (0–10)</td></tr>
+      <tr><td class="col-name">rent</td><td class="col-type type-numeric">numeric</td><td>Estimated monthly rent USD</td></tr>
+      <tr><td class="col-name">rent_low</td><td class="col-type type-numeric">numeric</td><td>Lower bound of confidence range</td></tr>
+      <tr><td class="col-name">rent_high</td><td class="col-type type-numeric">numeric</td><td>Upper bound of confidence range</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 30d TTL</td></tr>
+    </table>
+    <div class="empty-state"><span>🏠</span>No rows yet — RENTCAST_API_KEY not configured in Render</div>
+  </div>
+</div>
+
+<!-- NOISE CACHE -->
+<div class="table-card" id="noise_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>noise_cache</h3>
+      <p>HowLoud soundscore per coordinate · Source: api.howloud.com (paid) · TTL 1 year · 1 row cached</p>
+    </div>
+    <span class="badge badge-live">HowLoud</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'noise-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'noise-data')">1 row</div>
+  </div>
+  <div id="noise-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">coord_key</td><td class="col-type type-text">text PK</td><td>"lat4dp,lng4dp" cache key</td></tr>
+      <tr><td class="col-name">lat</td><td class="col-type type-numeric">float</td><td>Latitude</td></tr>
+      <tr><td class="col-name">lng</td><td class="col-type type-numeric">float</td><td>Longitude</td></tr>
+      <tr><td class="col-name">score</td><td class="col-type type-int">int 0–100</td><td>Noise score (lower = quieter)</td></tr>
+      <tr><td class="col-name">components</td><td class="col-type type-jsonb">jsonb</td><td>Breakdown: airports, traffic, local noise + text labels</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 1yr TTL</td></tr>
+    </table>
+  </div>
+  <div id="noise-data" class="tab-content">
+    <table>
+      <tr><th>coord_key</th><th>lat</th><th>lng</th><th>score</th><th>fetched_at</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">41.8789,-87.6359</span></td><td><span class="sample-num">41.8789</span></td><td><span class="sample-num">-87.6359</span></td><td><span class="sample-num">64</span></td><td><span class="sample-str">2026-05-11</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- AQI CACHE -->
+<div class="table-card" id="aqi_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>aqi_cache</h3>
+      <p>AirNow air quality index per ZIP · Source: airnowapi.org · TTL 1 hour · 1 row cached</p>
+    </div>
+    <span class="badge badge-live">AirNow</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'aqi-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'aqi-data')">1 row</div>
+  </div>
+  <div id="aqi-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">zip</td><td class="col-type type-text">text PK</td><td>5-digit ZIP code</td></tr>
+      <tr><td class="col-name">aqi</td><td class="col-type type-int">int</td><td>Air Quality Index value (0–500)</td></tr>
+      <tr><td class="col-name">primary_pollutant</td><td class="col-type type-text">text</td><td>Dominant pollutant: PM2.5 / O3 / CO / NO2 / SO2 / PM10</td></tr>
+      <tr><td class="col-name">category</td><td class="col-type type-text">text</td><td>Good / Moderate / Unhealthy for Sensitive / Unhealthy / Very Unhealthy / Hazardous</td></tr>
+      <tr><td class="col-name">source_observed_at</td><td class="col-type type-text">text</td><td>AirNow observation timestamp string</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 1hr TTL</td></tr>
+    </table>
+  </div>
+  <div id="aqi-data" class="tab-content">
+    <table>
+      <tr><th>zip</th><th>aqi</th><th>primary_pollutant</th><th>category</th><th>source_observed_at</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">60606</span></td><td><span class="sample-num">54</span></td><td><span class="sample-str">PM2.5</span></td><td><span class="sample-str">Moderate</span></td><td><span class="sample-str">2026-05-10T22:00</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- COMMUTE CACHE -->
+<div class="table-card" id="commute_cache">
+  <div class="table-card-header">
+    <div>
+      <h3>commute_cache</h3>
+      <p>Mapbox Directions commute time per building → work · Source: Mapbox Directions API v5 · TTL 30 days · 1 row cached</p>
+    </div>
+    <span class="badge badge-live">Mapbox</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'commute-schema')">Schema</div>
+    <div class="tab" onclick="switchTab(this,'commute-data')">1 row</div>
+  </div>
+  <div id="commute-schema" class="tab-content active">
+    <table>
+      <tr><th>Column</th><th>Type</th><th>Notes</th></tr>
+      <tr><td class="col-name">building_pin</td><td class="col-type type-text">text</td><td>Origin parcel PIN</td></tr>
+      <tr><td class="col-name">work_lat</td><td class="col-type type-numeric">float</td><td>Destination latitude</td></tr>
+      <tr><td class="col-name">work_lng</td><td class="col-type type-numeric">float</td><td>Destination longitude</td></tr>
+      <tr><td class="col-name">mode</td><td class="col-type type-text">text</td><td>driving / driving-traffic / walking / cycling</td></tr>
+      <tr><td class="col-name">minutes</td><td class="col-type type-int">int</td><td>Travel time in minutes</td></tr>
+      <tr><td class="col-name">distance_m</td><td class="col-type type-int">int</td><td>Route distance in meters</td></tr>
+      <tr><td class="col-name">fetched_at</td><td class="col-type type-timestamp">timestamptz</td><td>Cache timestamp — 30d TTL</td></tr>
+    </table>
+  </div>
+  <div id="commute-data" class="tab-content">
+    <table>
+      <tr><th>building_pin</th><th>work_lat</th><th>work_lng</th><th>mode</th><th>minutes</th><th>distance_m</th></tr>
+      <tr class="sample-row"><td><span class="sample-str">17162160090000</span></td><td><span class="sample-num">41.9742</span></td><td><span class="sample-num">-87.9073</span></td><td><span class="sample-str">driving-traffic</span></td><td><span class="sample-num">21 min</span></td><td><span class="sample-num">28,831 m</span></td></tr>
+    </table>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+function switchTab(el, contentId) {
+  const card = el.closest('.table-card');
+  card.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  card.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById(contentId).classList.add('active');
+}
+
+// Sidebar active link highlight on scroll
+const sections = document.querySelectorAll('.table-card[id]');
+const navLinks = document.querySelectorAll('nav a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(a => a.classList.remove('active'));
+      const link = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+      if (link) link.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

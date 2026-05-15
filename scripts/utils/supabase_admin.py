@@ -89,6 +89,10 @@ class _Query:
         self._params.append((column, f"neq.{value}"))
         return self
 
+    def lt(self, column: str, value: Any) -> "_Query":
+        self._params.append((column, f"lt.{value}"))
+        return self
+
     def order(self, column: str, desc: bool = False) -> "_Query":
         self._params.append(("order", f"{column}.{'desc' if desc else 'asc'}"))
         return self

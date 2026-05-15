@@ -44,6 +44,14 @@ import transformers._311 as _t_311
 import transformers.cta as _t_cta
 import transformers.parks as _t_parks
 import transformers.streets as _t_streets
+import transformers.building_permits as _t_permits
+import transformers.cps_boundaries as _t_cps
+import transformers.building_footprints as _t_footprints
+import transformers.displacement_typology as _t_displacement
+import transformers.tract_geometry as _t_tract_geom
+import transformers.snow_routes as _t_snow
+import transformers.winter_restrictions as _t_winter
+import transformers.parking_permit_zones as _t_ppz
 from fetchers.fetch_acs import to_silver as _acs_to_silver
 
 log = structlog.get_logger()
@@ -51,25 +59,41 @@ log = structlog.get_logger()
 # ── Silver table per source ───────────────────────────────────────────────────
 
 SILVER_TABLE = {
-    "assessor": "buildings",
-    "cpd":      "cpd_incidents",
-    "311":      "complaints_311",
-    "cta":      "cta_stops",
-    "parks":    "parks",
-    "streets":  "streets",
-    "acs":      "tracts",
+    "assessor":            "buildings",
+    "cpd":                 "cpd_incidents",
+    "311":                 "complaints_311",
+    "cta":                 "cta_stops",
+    "parks":               "parks",
+    "streets":             "streets",
+    "acs":                 "tracts",
+    "building_permits":    "building_permits",
+    "cps_boundaries":      "school_boundaries",
+    "building_footprints": "building_footprints",
+    "displacement":        "displacement_typology",
+    "tract_geometry":      "tracts",
+    "snow_routes":         "snow_route_restrictions",
+    "winter_restrictions": "winter_overnight_restrictions",
+    "parking_zones":       "parking_permit_zones",
 }
 
 # Bronze prefix(es) per logical source — assessor joins 4 sub-datasets.
 BRONZE_KEYS = {
-    "assessor": ["assessor.universe", "assessor.addresses",
-                 "assessor.characteristics", "assessor.sales"],
-    "cpd":      ["cpd"],
-    "311":      ["311"],
-    "cta":      ["cta"],
-    "parks":    ["parks"],
-    "streets":  ["streets"],
-    "acs":      ["acs"],
+    "assessor":            ["assessor.universe", "assessor.addresses",
+                            "assessor.characteristics", "assessor.sales"],
+    "cpd":                 ["cpd"],
+    "311":                 ["311"],
+    "cta":                 ["cta"],
+    "parks":               ["parks"],
+    "streets":             ["streets"],
+    "acs":                 ["acs"],
+    "building_permits":    ["building_permits"],
+    "cps_boundaries":      ["cps_elementary_boundaries"],
+    "building_footprints": ["building_footprints"],
+    "displacement":        ["displacement_typology"],
+    "tract_geometry":      ["tract_geometry"],
+    "snow_routes":         ["snow_route_restrictions"],
+    "winter_restrictions": ["winter_overnight_restrictions"],
+    "parking_zones":       ["parking_permit_zones"],
 }
 
 
@@ -123,9 +147,24 @@ def _transform(source: str, bronze: dict[str, list]) -> list[dict]:
     if source == "streets":
         return _t_streets.to_silver(bronze["streets"])
     if source == "acs":
-        # ACS bronze rows were stored as {"row": [census_api_list]}
         raw = [r["row"] for r in bronze["acs"]]
         return _acs_to_silver(raw)
+    if source == "building_permits":
+        return _t_permits.to_silver(bronze["building_permits"])
+    if source == "cps_boundaries":
+        return _t_cps.to_silver(bronze["cps_elementary_boundaries"])
+    if source == "building_footprints":
+        return _t_footprints.to_silver(bronze["building_footprints"])
+    if source == "displacement":
+        return _t_displacement.to_silver(bronze["displacement_typology"])
+    if source == "tract_geometry":
+        return _t_tract_geom.to_silver(bronze["tract_geometry"])
+    if source == "snow_routes":
+        return _t_snow.to_silver(bronze["snow_route_restrictions"])
+    if source == "winter_restrictions":
+        return _t_winter.to_silver(bronze["winter_overnight_restrictions"])
+    if source == "parking_zones":
+        return _t_ppz.to_silver(bronze["parking_permit_zones"])
     raise ValueError(f"No transformer defined for source: {source!r}")
 
 

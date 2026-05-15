@@ -72,6 +72,8 @@ def to_silver(
             year_built = int(float(char_row["char_yrblt"])) if char_row.get("char_yrblt") else None
         except (TypeError, ValueError):
             year_built = None
+        if year_built is not None and not (1830 <= year_built <= 2100):
+            year_built = None
 
         purchase_year = None
         purchase_price = None

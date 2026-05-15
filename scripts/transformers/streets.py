@@ -29,6 +29,7 @@ from typing import Iterable, Optional
 from shapely.geometry import shape
 from shapely.geometry.linestring import LineString
 from shapely.geometry.multilinestring import MultiLineString
+from shapely.ops import linemerge
 
 # Chicago bounding box — drops segments outside the city.
 CHI_NORTH, CHI_SOUTH = 42.023, 41.644
@@ -133,6 +134,14 @@ def _in_chicago(geom) -> bool:
     return False
 
 
+def _in_chicago_ls(geom: LineString) -> bool:
+    """True if any vertex of a LineString is inside the Chicago bbox."""
+    for x, y in geom.coords:
+        if CHI_WEST <= x <= CHI_EAST and CHI_SOUTH <= y <= CHI_NORTH:
+            return True
+    return False
+
+
 def to_silver(features: Iterable[dict]) -> list[dict]:
     """Map raw ArcGIS GeoJSON street centerline features to streets silver rows."""
     silver: list[dict] = []
@@ -160,11 +169,19 @@ def to_silver(features: Iterable[dict]) -> list[dict]:
             geom = shape(geom_json)
         except Exception:
             continue
-        if isinstance(geom, LineString):
-            geom = MultiLineString([geom])
-        if not isinstance(geom, MultiLineString) or geom.is_empty:
+        if isinstance(geom, MultiLineString):
+            # Merge connected rings into a single LineString where possible.
+            # The live DB column is GEOMETRY(LINESTRING,4326) until migration 022
+            # (ALTER COLUMN to MULTILINESTRING) is applied via direct DB access.
+            merged = linemerge(geom)
+            if isinstance(merged, MultiLineString):
+                # Disjoint segments — keep the longest one.
+                geom = max(merged.geoms, key=lambda g: g.length)
+            else:
+                geom = merged
+        if not isinstance(geom, LineString) or geom.is_empty:
             continue
-        if not _in_chicago(geom):
+        if not _in_chicago_ls(geom):
             continue
 
         name = _build_name(props)
