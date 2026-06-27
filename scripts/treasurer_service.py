@@ -379,23 +379,29 @@ def rent():
     return jsonify({k: v for k, v in row.items() if k != "comparables"} | {"cached": False})
 
 
-# Google Places (New) Nearby Search — $200/mo free credit. 30d cache.
-GPLACES_URL = "https://places.googleapis.com/v1/places:searchNearby"
-GPLACES_TTL_SECONDS = 30 * 24 * 60 * 60
+# OpenStreetMap Overpass — free, no API key. 30d cache (amenities_cache).
+# (Overpass rejects requests without a User-Agent; always send one.)
+OVERPASS_ENDPOINTS = [
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
+AMENITY_TTL_SECONDS = 30 * 24 * 60 * 60
+AMENITY_RADIUS_M = 402  # 0.25 mi
 
-_PLACE_TYPE_MAP = {
-    "grocery":   "grocery_store",
-    "gym":       "gym",
-    "pharmacy":  "pharmacy",
-    "coffee":    "cafe",
-    "restaurant":"restaurant",
-    "park":      "park",
-    "bank":      "bank",
-    "laundry":   "laundry",
-    "post_office": "post_office",
-    "atm":         "atm",
-    "hotel":       "lodging",
-    "convenience": "convenience_store",
+# category → list of OSM (key, value) tag filters; any match counts.
+_OSM_TAGS = {
+    "grocery":     [("shop", "supermarket"), ("shop", "grocery")],
+    "gym":         [("leisure", "fitness_centre"), ("amenity", "gym")],
+    "pharmacy":    [("amenity", "pharmacy")],
+    "coffee":      [("amenity", "cafe")],
+    "restaurant":  [("amenity", "restaurant")],
+    "park":        [("leisure", "park")],
+    "bank":        [("amenity", "bank")],
+    "laundry":     [("shop", "laundry"), ("amenity", "laundry")],
+    "post_office": [("amenity", "post_office")],
+    "atm":         [("amenity", "atm")],
+    "hotel":       [("tourism", "hotel")],
+    "convenience": [("shop", "convenience")],
 }
 
 
@@ -407,12 +413,9 @@ def amenities():
     except ValueError:
         return jsonify({"error": "lat and lng required"}), 400
     category = (request.args.get("category") or "").strip().lower()
-    place_type = _PLACE_TYPE_MAP.get(category)
-    if not place_type:
-        return jsonify({"error": f"unknown category; allowed: {sorted(_PLACE_TYPE_MAP)}"}), 400
-    api_key = os.environ.get("GOOGLE_PLACES_KEY")
-    if not api_key:
-        return jsonify({"error": "GOOGLE_PLACES_KEY not configured"}), 503
+    tags = _OSM_TAGS.get(category)
+    if not tags:
+        return jsonify({"error": f"unknown category; allowed: {sorted(_OSM_TAGS)}"}), 400
 
     addr_key = f"{lat:.4f},{lng:.4f}"
     client = get_admin_client()
@@ -424,48 +427,60 @@ def amenities():
         first = cached[0]
         age_s = (datetime.now(timezone.utc) -
                  _parse_ts(first["cached_at"])).total_seconds()
-        if age_s < GPLACES_TTL_SECONDS:
+        if age_s < AMENITY_TTL_SECONDS:
             return jsonify({"category": category, "places": cached, "cached": True})
 
-    try:
-        r = requests.post(GPLACES_URL, json={
-            "includedTypes": [place_type],
-            "locationRestriction": {"circle": {
-                "center": {"latitude": lat, "longitude": lng},
-                "radius": 402,
-            }},
-            "maxResultCount": 10,
-        }, headers={
-            "Content-Type": "application/json",
-            "X-Goog-Api-Key": api_key,
-            "X-Goog-FieldMask": "places.displayName,places.priceLevel,places.location,places.id",
-        }, timeout=20)
-        r.raise_for_status()
-        places = (r.json().get("places") or [])
-    except Exception as e:
-        return jsonify({"error": "google places lookup failed", "detail": str(e)}), 500
+    # Overpass query: nodes + ways for each tag alternative within the radius.
+    clauses = "".join(
+        f'node["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});'
+        f'way["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});'
+        for (k, v) in tags
+    )
+    query = f"[out:json][timeout:25];({clauses});out center 25 tags;"
+    elements = None
+    for ep in OVERPASS_ENDPOINTS:
+        try:
+            r = requests.post(
+                ep, data={"data": query},
+                headers={"User-Agent": "Chicago.Intel/1.0 (neighborhood dashboard)"},
+                timeout=35,
+            )
+            r.raise_for_status()
+            elements = r.json().get("elements", [])
+            break
+        except Exception:
+            continue
+    if elements is None:
+        return jsonify({"error": "overpass lookup failed"}), 502
 
     now = datetime.now(timezone.utc).isoformat()
     expires = (datetime.now(timezone.utc) +
-               __import__("datetime").timedelta(seconds=GPLACES_TTL_SECONDS)).isoformat()
+               __import__("datetime").timedelta(seconds=AMENITY_TTL_SECONDS)).isoformat()
     rows = []
-    for p in places:
-        ploc = p.get("location") or {}
-        plat, plng = ploc.get("latitude"), ploc.get("longitude")
-        dist = None
-        if plat is not None and plng is not None:
-            # crude planar distance — close enough at this scale (≤402m)
-            dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+    for el in elements:
+        if el.get("type") == "node":
+            plat, plng = el.get("lat"), el.get("lon")
+        else:  # way / relation → use computed center
+            c = el.get("center") or {}
+            plat, plng = c.get("lat"), c.get("lon")
+        if plat is None or plng is None:
+            continue
+        # crude planar distance — close enough at this scale (≤402 m)
+        dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+        if dist > AMENITY_RADIUS_M:
+            continue
         rows.append({
             "address_key": addr_key,
             "category": category,
-            "name": (p.get("displayName") or {}).get("text"),
+            "name": (el.get("tags") or {}).get("name"),
             "distance_m": dist,
-            "price_level": _price_level_int(p.get("priceLevel")),
-            "place_id": p.get("id"),
+            "price_level": None,
+            "place_id": f"osm/{el.get('type')}/{el.get('id')}",
             "cached_at": now,
             "expires_at": expires,
         })
+    rows.sort(key=lambda x: x["distance_m"])
+    rows = rows[:10]
     if rows:
         try:
             client.table("amenities_cache").insert(rows).execute()
