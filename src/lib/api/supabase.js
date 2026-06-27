@@ -5,6 +5,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { DatabaseError } from '../errors/index.js';
 import { withRetry, CircuitBreaker } from '../retry/index.js';
+import { ccaById, ccaContaining, ccaGeometry } from './ccaStatic.js';
+import { tractContaining, tractGeometry, displacementContaining } from './tractStatic.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -111,9 +113,13 @@ export async function getLastSyncedAt(source) {
  * } | null>}
  */
 export async function getDisplacementAt(lat, lng) {
-  const rows = await rpc('displacement_at', { lat, lng });
-  if (!rows || rows.length === 0) return null;
-  const r = rows[0];
+  let r = null;
+  try {
+    const rows = await rpc('displacement_at', { lat, lng });
+    if (rows && rows.length > 0) r = rows[0];
+  } catch { /* fall through to static bundle */ }
+  if (!r) r = await displacementContaining(lat, lng); // fallback while RLS (026) unapplied
+  if (!r) return null;
   return {
     geoid: r.geoid,
     typology: r.typology,
@@ -127,38 +133,50 @@ export async function getDisplacementAt(lat, lng) {
 }
 
 export async function getCcaAt(lat, lng) {
-  const rows = await rpc('cca_containing_point', { lat, lng });
-  if (!rows || rows.length === 0) return null;
-  return { id: rows[0].id, name: rows[0].name };
+  try {
+    const rows = await rpc('cca_containing_point', { lat, lng });
+    if (rows && rows.length > 0) return { id: rows[0].id, name: rows[0].name };
+  } catch { /* fall through to static bundle */ }
+  return ccaContaining(lat, lng); // fallback while anon RLS (migration 026) unapplied
 }
 
 export async function getTractAt(lat, lng) {
-  const rows = await rpc('tract_containing_point', { lat, lng });
-  if (!rows || rows.length === 0) return null;
-  return { id: rows[0].id, name: rows[0].name, cca_id: rows[0].cca_id };
+  try {
+    const rows = await rpc('tract_containing_point', { lat, lng });
+    if (rows && rows.length > 0) {
+      return { id: rows[0].id, name: rows[0].name, cca_id: rows[0].cca_id };
+    }
+  } catch { /* fall through to static bundle */ }
+  return tractContaining(lat, lng); // fallback while RLS (026) unapplied
 }
 
 export async function getCcaGeojson(ccaId) {
-  const rows = await rpc('cca_geojson', { cca_id: ccaId });
-  if (!rows || rows.length === 0) return null;
-  return rows[0].cca_geojson ?? rows[0];
+  try {
+    const rows = await rpc('cca_geojson', { cca_id: ccaId });
+    if (rows && rows.length > 0) return rows[0].cca_geojson ?? rows[0];
+  } catch { /* fall through to static bundle */ }
+  return ccaGeometry(ccaId); // fallback while anon RLS (migration 026) unapplied
 }
 
 export async function getTractGeojson(geoid) {
-  const rows = await rpc('tract_geojson', { geoid });
-  if (!rows || rows.length === 0) return null;
-  return rows[0].tract_geojson ?? rows[0];
+  try {
+    const rows = await rpc('tract_geojson', { geoid });
+    if (rows && rows.length > 0) return rows[0].tract_geojson ?? rows[0];
+  } catch { /* fall through to static bundle */ }
+  return tractGeometry(geoid); // fallback while RLS (026) unapplied
 }
 
 export async function getCcaById(ccaId) {
-  if (!supabase) return null;
-  const { data, error } = await supabase
-    .from('ccas')
-    .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage')
-    .eq('id', ccaId)
-    .single();
-  if (error) throw new DatabaseError({ cause: error, meta: { ccaId } });
-  return data;
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('ccas')
+      .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage')
+      .eq('id', ccaId)
+      .maybeSingle();
+    if (!error && data) return data;
+    // error or 0 rows (anon RLS, migration 026 unapplied) → static bundle below
+  }
+  return ccaById(ccaId);
 }
 
 export async function getNearestCTAStop(lat, lng) {

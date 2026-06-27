@@ -1,9 +1,8 @@
-// Building parcel facts (Cook County Assessor) at a coordinate.
-// Renders only fields whose pipeline is wired today — tax bill (treasurer),
-// 311-derived counters, landlord_score, and flood_zone are intentionally
-// absent until their pipelines land.
+// Building parcel facts (Cook County Assessor) at a coordinate, plus the
+// 311-derived landlord record (violations + rodent, matched by address).
+// Tax bill (treasurer) and flood_zone are still absent until those land.
 
-import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, User } from 'lucide-react';
+import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
@@ -140,6 +139,21 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
               tooltip="Assigned CPS elementary school for this address per Cook County Assessor"
             />
             <Row
+              icon={ShieldAlert}
+              label="landlord record (311)"
+              value={
+                state.data.landlord_score != null
+                  ? `${Number(state.data.landlord_score).toFixed(1)} / 10`
+                  : 'no violations on record'
+              }
+              caveat={
+                state.data.landlord_score != null
+                  ? `${state.data.violations_5yr} bldg violations · ${state.data.bug_reports} rodent · 5yr`
+                  : null
+              }
+              tooltip="Chicago 311 Building Violations (weighted) + rodent complaints filed at this address over 5 years, matched by address. Higher = cleaner record. Source: Chicago 311 (7/10)."
+            />
+            <Row
               icon={Crosshair}
               label="distance to point"
               value={`${state.data.distance_m} m`}
@@ -157,8 +171,10 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
                 does not publish a public API; live lookup is queued.
               </li>
               <li>
-                Building condition, violations, or 311 history — counters
-                are populated by a separate reconcile pass not yet wired.
+                Violations are matched to this address from Chicago 311; about
+                30% of complaints (intersection/format mismatches) can't be
+                matched, so "no violations on record" is not a guarantee. A low
+                score reflects complaint volume, which rises with building size.
               </li>
               <li>
                 Beneficial owner — owner field is the taxpayer's mailing

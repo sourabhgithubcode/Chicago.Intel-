@@ -1,7 +1,12 @@
 """API #7 — Chicago Data Portal / 311 (Tier 3 pipeline).
 
 Dataset: v6vf-nfxy (311 Service Requests). Env: CHICAGO_DATA_TOKEN (optional).
-Pulls: building violations, heat complaints, bed bug reports, rodent reports.
+Pulls: building violations, rodent complaints, AC complaints, sanitation code
+violations, renter/foreclosure complaints.
+
+NOTE: "No Heat Complaint" and "Bed Bug Complaint" do not exist as distinct
+sr_type values in v6vf-nfxy (verified 2026-05-17). Heat-in-winter and bed bug
+reports appear to be subsumed into "Building Violation" in the unified dataset.
 
 NOTE: a previous version of this file pointed at kn9c-c2s2, which is the
 'Selected Socioeconomic Indicators' dataset, not 311. Fixed.
@@ -28,9 +33,10 @@ DATE_FLOOR = "2020-01-01"
 
 RELEVANT_TYPES = (
     "Building Violation",
-    "No Heat Complaint",
-    "Bed Bug Complaint",
     "Rodent Baiting/Rat Complaint",
+    "No Air Conditioning",
+    "Sanitation Code Violation",
+    "Renters and Foreclosure Complaint",
 )
 
 

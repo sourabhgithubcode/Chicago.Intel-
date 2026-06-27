@@ -19,7 +19,7 @@ import requests
 
 API_KEY = os.getenv("CENSUS_API_KEY")
 BASE = "https://api.census.gov/data/2023/acs/acs5"
-SENTINELS = {-666666666, -999999999, -888888888}
+SENTINELS = {-666666666, -999999999, -888888888, -222222222}
 
 # Pulled in one batch — Census API returns rows of strings; first row is header.
 VARS = [

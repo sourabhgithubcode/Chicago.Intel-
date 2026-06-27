@@ -7,7 +7,7 @@ import Tooltip from '../Tooltip.jsx';
 import { getCcaById } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
-function Row({ icon: Icon, label, value, tooltip }) {
+function Row({ icon: Icon, label, value, tooltip, confidence, source }) {
   if (value == null) return null;
   const labelNode = tooltip ? (
     <Tooltip content={tooltip}>
@@ -15,12 +15,15 @@ function Row({ icon: Icon, label, value, tooltip }) {
     </Tooltip>
   ) : label;
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+    <div className="flex items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
       <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
         {Icon && <Icon size={11} />}
         {labelNode}
       </span>
-      <span className="text-t0">{value}</span>
+      <span className="flex items-center gap-2">
+        <span className="text-t0">{value}</span>
+        {confidence != null && <ConfidenceTag score={confidence} source={source} />}
+      </span>
     </div>
   );
 }
@@ -55,10 +58,6 @@ export default function CcaOverview({ ccaId }) {
           <LayoutGrid size={18} className="text-cyan" />
           {state.status === 'ok' ? state.data.name : 'Neighborhood'}
         </h3>
-        <ConfidenceTag
-          score={7}
-          source={{ label: 'ACS 2019–23', url: 'https://data.census.gov/' }}
-        />
       </header>
 
       {state.status === 'loading' && <p className="text-t2">Loading…</p>}
@@ -77,30 +76,40 @@ export default function CcaOverview({ ccaId }) {
               label="Median rent (ACS)"
               value={state.data.rent_median ? `$${state.data.rent_median.toLocaleString()}/mo` : null}
               tooltip="Median gross rent across all renter households in this Community Area — ACS 5-year estimate (2019–23)"
+              confidence={7}
+              source={{ label: 'ACS 2019–23', url: 'https://data.census.gov/' }}
             />
             <Row
               icon={Shield}
               label="Safety score"
               value={score(state.data.safety_score)}
-              tooltip="Inverse of CPD crime incident rate within the CCA over 5 years. Higher = fewer incidents."
+              tooltip="10 minus the per-capita rate of CPD violent (×3) + property crime over 5 years, scaled and clamped. Higher = safer. Per-capita basis can read harsh in low-residential / high-daytime areas."
+              confidence={7}
+              source={{ label: 'CPD 2020–', url: 'https://data.cityofchicago.org/' }}
             />
             <Row
               icon={Activity}
               label="Walk score"
               value={score(state.data.walk_score)}
-              tooltip="Walkability based on distance to transit stops, parks, and daily amenities"
+              tooltip="Transit + park access density within the Community Area. Signal only — excludes amenity density and pedestrian infrastructure."
+              confidence={6}
+              source={{ label: 'CTA + Park District' }}
             />
             <Row
               icon={Sparkles}
               label="Vibe score"
               value={score(state.data.vibe_score)}
-              tooltip="Composite of nearby dining, coffee, and entertainment density from Yelp. Signal only — North Side bias."
+              tooltip="Composite of nearby dining, coffee, and entertainment density from Foursquare. Signal only — North Side bias."
+              confidence={6}
+              source={{ label: 'Foursquare' }}
             />
             <Row
               icon={TrendingDown}
               label="Displacement score"
               value={score(state.data.disp_score)}
-              tooltip="Market pressure index from UC Berkeley's UDP typology. Higher = greater risk of resident displacement."
+              tooltip="Market-pressure index mapped from UC Berkeley UDP tract typology (2013–18). Higher = greater displacement risk."
+              confidence={6}
+              source={{ label: 'UDP / DePaul IHS' }}
             />
             <Row
               icon={Clock}

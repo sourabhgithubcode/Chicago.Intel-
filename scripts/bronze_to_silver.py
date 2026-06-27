@@ -52,6 +52,7 @@ import transformers.tract_geometry as _t_tract_geom
 import transformers.snow_routes as _t_snow
 import transformers.winter_restrictions as _t_winter
 import transformers.parking_permit_zones as _t_ppz
+import transformers.ccas as _t_ccas
 from fetchers.fetch_acs import to_silver as _acs_to_silver
 
 log = structlog.get_logger()
@@ -74,6 +75,7 @@ SILVER_TABLE = {
     "snow_routes":         "snow_route_restrictions",
     "winter_restrictions": "winter_overnight_restrictions",
     "parking_zones":       "parking_permit_zones",
+    "ccas":                "ccas",
 }
 
 # Bronze prefix(es) per logical source — assessor joins 4 sub-datasets.
@@ -94,6 +96,7 @@ BRONZE_KEYS = {
     "snow_routes":         ["snow_route_restrictions"],
     "winter_restrictions": ["winter_overnight_restrictions"],
     "parking_zones":       ["parking_permit_zones"],
+    "ccas":                ["ccas"],
 }
 
 
@@ -165,6 +168,8 @@ def _transform(source: str, bronze: dict[str, list]) -> list[dict]:
         return _t_winter.to_silver(bronze["winter_overnight_restrictions"])
     if source == "parking_zones":
         return _t_ppz.to_silver(bronze["parking_permit_zones"])
+    if source == "ccas":
+        return _t_ccas.to_silver(bronze["ccas"])
     raise ValueError(f"No transformer defined for source: {source!r}")
 
 
