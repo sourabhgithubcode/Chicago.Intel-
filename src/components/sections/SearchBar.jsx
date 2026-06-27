@@ -1,56 +1,58 @@
+// Address search with live autocomplete via the Mapbox Search JS SDK.
+// <SearchBox> renders its own input + suggestion dropdown (debounce, keyboard
+// nav, session handling are built in). Selecting a suggestion returns the
+// coordinates directly, so we skip a separate geocode round-trip.
+// Caller: App.jsx (onResult({ lat, lng, address })).
+
 import { useState } from 'react';
-import { Search } from 'lucide-react';
-import { geocodeAddress } from '../../lib/api/geocode.js';
+import { SearchBox } from '@mapbox/search-js-react';
+
+const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+// Chicago bounding box [minLng, minLat, maxLng, maxLat] — keep results in-city.
+const CHI_BBOX = [-87.940, 41.644, -87.524, 42.023];
 
 export default function SearchBar({ onResult, initialValue = '' }) {
-  const [query, setQuery] = useState(initialValue);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(null);
+  const [value, setValue] = useState(initialValue);
 
-  async function submit(e) {
-    e.preventDefault();
-    if (!query.trim() || busy) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const hit = await geocodeAddress(query);
-      if (!hit) {
-        setErr('No match for that address in Chicago.');
-        return;
-      }
-      onResult({ lat: hit.lat, lng: hit.lng, address: hit.formatted_address });
-    } catch (e) {
-      setErr(e.message ?? 'Geocode failed.');
-    } finally {
-      setBusy(false);
-    }
+  function handleRetrieve(res) {
+    const f = res?.features?.[0];
+    if (!f?.geometry?.coordinates) return;
+    const [lng, lat] = f.geometry.coordinates;
+    const address = f.properties?.full_address || f.properties?.name || value;
+    onResult({ lat, lng, address });
   }
 
   return (
-    <form onSubmit={submit} className="glass-2 space-y-2 p-4">
-      <label className="label-mono text-t3 block text-xs" htmlFor="addr">
-        chicago address
-      </label>
-      <div className="flex gap-2">
-        <input
-          id="addr"
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+    <div className="glass-2 space-y-2 p-4">
+      <label className="label-mono text-t3 block text-xs">chicago address</label>
+      {TOKEN ? (
+        <SearchBox
+          accessToken={TOKEN}
+          value={value}
+          onChange={(d) => setValue(d)}
+          onRetrieve={handleRetrieve}
           placeholder="233 S Wacker Dr"
-          className="glass-3 text-t0 placeholder:text-t3 flex-1 rounded-md px-3 py-2 text-sm outline-none transition-colors hover:border-slate-300 focus:ring-2 focus:ring-cyan/40"
-          autoComplete="off"
+          options={{
+            language: 'en',
+            country: 'US',
+            bbox: CHI_BBOX,
+            proximity: [-87.65, 41.85],
+            types: 'address',
+          }}
+          theme={{
+            variables: {
+              colorPrimary: '#06b6d4',
+              borderRadius: '0.375rem',
+              fontFamily: 'inherit',
+              unit: '14px',
+            },
+          }}
         />
-        <button
-          type="submit"
-          disabled={busy || !query.trim()}
-          className="flex items-center gap-1.5 rounded-md bg-cyan px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-blue-700 active:scale-95 disabled:opacity-40"
-        >
-          <Search size={14} />
-          {busy ? 'Searching…' : 'Search'}
-        </button>
-      </div>
-      {err && <p className="text-rose text-xs">{err}</p>}
-    </form>
+      ) : (
+        <p className="text-rose text-xs">
+          Search unavailable — VITE_MAPBOX_TOKEN not set.
+        </p>
+      )}
+    </div>
   );
 }
