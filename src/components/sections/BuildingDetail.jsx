@@ -42,7 +42,7 @@ function Row({ icon: Icon, label, value, caveat, tooltip }) {
   );
 }
 
-export default function BuildingDetail({ lat, lng, onLoaded }) {
+export default function BuildingDetail({ lat, lng, address, onLoaded }) {
   const [state, setState] = useState({ status: 'loading' });
   const [syncedAt, setSyncedAt] = useState(null);
 
@@ -51,7 +51,7 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
     let cancelled = false;
     setState({ status: 'loading' });
     Promise.all([
-      getBuildingAt(lat, lng),
+      getBuildingAt(lat, lng, address),
       getLastSyncedAt('assessor').catch(() => null),
     ])
       .then(([data, synced]) => {
@@ -68,7 +68,7 @@ export default function BuildingDetail({ lat, lng, onLoaded }) {
     return () => {
       cancelled = true;
     };
-  }, [lat, lng, onLoaded]);
+  }, [lat, lng, address, onLoaded]);
 
   return (
     <section className="glass-2 space-y-3 p-5">

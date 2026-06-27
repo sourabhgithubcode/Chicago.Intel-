@@ -19,6 +19,7 @@
     "react-map-gl": "^7.1.6"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.57.0",

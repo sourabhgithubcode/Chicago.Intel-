@@ -74,6 +74,12 @@ export default function App() {
             <p className="text-t2 text-sm leading-relaxed">
               Neighborhood intelligence for Chicago renters.
             </p>
+            {/* Permanent UI copy (CLAUDE.md — do not change) */}
+            <p className="text-t3 mx-auto max-w-md border-t border-slate-100 pt-3 text-xs leading-relaxed">
+              Chicago.Intel shows you what public data says about any address in
+              Chicago. We tell you how confident we are in each number and what it
+              does not capture. You make the decision. We never tell you where to live.
+            </p>
           </header>
 
           <Breadcrumb
@@ -109,6 +115,7 @@ export default function App() {
               <BuildingDetail
                 lat={target.lat}
                 lng={target.lng}
+                address={target.address}
                 onLoaded={handleBuildingLoaded}
               />
               <TaxBill pin={pin} />

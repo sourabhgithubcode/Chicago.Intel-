@@ -144,6 +144,23 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
 export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
   const [geoJson, setGeoJson] = useState(null);
 
+  // A real Mapbox public token starts with "pk." — without one, mapbox-gl throws
+  // and renders a blank panel. Degrade gracefully instead of spamming errors.
+  if (!TOKEN || !TOKEN.startsWith('pk.')) {
+    return (
+      <div className="flex h-full w-full items-center justify-center bg-slate-100 p-8 text-center">
+        <div className="max-w-xs">
+          <p className="text-t1 text-sm font-semibold">Map unavailable</p>
+          <p className="text-t2 mt-1 text-xs leading-relaxed">
+            Set <code className="rounded bg-slate-200 px-1">VITE_MAPBOX_TOKEN</code> to a
+            valid Mapbox public token to enable the map. All neighborhood data is in
+            the panel on the left.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Map
       mapboxAccessToken={TOKEN}

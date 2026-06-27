@@ -18,11 +18,15 @@ const breaker = new CircuitBreaker({ name: 'supabase' });
 export async function rpc(name, params = {}) {
   if (!supabase) throw new DatabaseError({ meta: { reason: 'no-client' } });
   return breaker.fire(() =>
+    // find_building_at is a spatial query that flakily exceeds the anon role's
+    // 3s statement_timeout (missing geography GIST index — see WORKLOG/026/index
+    // fix). withRetry sits INSIDE breaker.fire, so a whole retry sequence is one
+    // breaker failure; extra attempts buy reliability without tripping the circuit.
     withRetry(async () => {
       const { data, error } = await supabase.rpc(name, params);
       if (error) throw new DatabaseError({ cause: error, meta: { name, params } });
       return data;
-    })
+    }, { attempts: 5, baseMs: 300 })
   );
 }
 
@@ -59,19 +63,14 @@ export async function rpc(name, params = {}) {
  *   confidence: number,
  * } | null>}
  */
-export async function getBuildingAt(lat, lng) {
-  const rows = await rpc('find_building_at', { lat, lng });
-  if (!rows || rows.length === 0) return null;
-  const r = rows[0];
+const BUILDING_COLS =
+  'pin,address,owner,year_built,purchase_year,purchase_price,tax_current,tax_annual,' +
+  'violations_5yr,bug_reports,heat_complaints,landlord_score,flood_zone,school_elem';
+
+function shapeBuilding(r, distance_m) {
   return {
-    pin: r.pin,
-    address: r.address,
-    owner: r.owner,
-    year_built: r.year_built,
-    purchase_year: r.purchase_year,
-    purchase_price: r.purchase_price,
-    school_elem: r.school_elem,
-    distance_m: r.distance_m,
+    ...r,
+    distance_m: distance_m ?? r.distance_m ?? 0,
     source: {
       id: 'cook-county-assessor',
       label: 'Cook County Assessor',
@@ -79,6 +78,25 @@ export async function getBuildingAt(lat, lng) {
     },
     confidence: 9,
   };
+}
+
+export async function getBuildingAt(lat, lng, address) {
+  // Fast path: exact address match. address_norm is indexed (~0.2s), so this
+  // avoids the spatial find_building_at RPC, which flakily exceeds the anon
+  // role's 3s statement_timeout (geometry/geography GIST index not used).
+  if (supabase && address) {
+    const norm = address.split(',')[0].trim().toUpperCase().replace(/\s+/g, ' ');
+    if (norm && !/\(default\)/i.test(norm)) {
+      const { data } = await supabase
+        .from('buildings').select(BUILDING_COLS)
+        .eq('address_norm', norm).limit(1).maybeSingle();
+      if (data) return shapeBuilding(data, 0);
+    }
+  }
+  // Fallback: nearest building within 100 m (spatial RPC).
+  const rows = await rpc('find_building_at', { lat, lng });
+  if (!rows || rows.length === 0) return null;
+  return shapeBuilding(rows[0]);
 }
 
 /**
