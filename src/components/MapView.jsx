@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import Map, { Layer, Source, useMap } from 'react-map-gl';
 import { bbox, circle } from '@turf/turf';
-import { getCcaGeojson, getTractGeojson } from '../lib/api/supabase.js';
+import { getBuildingFootprint, getCcaGeojson, getTractGeojson } from '../lib/api/supabase.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -43,46 +43,63 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
       return;
     }
 
-    // ── Building — query Mapbox vector tile building footprint ────────────
+    // ── Building — exact footprint from our DB, then tile, then circle ────
     if (layer === 'building' && lat != null && lng != null) {
-      map.flyTo({ center: [lng, lat], zoom: 17, duration: 800 });
+      map.flyTo({ center: [lng, lat], zoom: 18, duration: 800 });
 
       let stale = false;
-      const onIdle = () => {
-        if (stale) return;
-        stale = true;
-        map.off('idle', onIdle);
+      let detachIdle = null;
 
-        const pt = map.project([lng, lat]);
-        // Query Mapbox dark-v11 building footprint layer at the point
-        const hits = map.queryRenderedFeatures(
-          [[pt.x - 6, pt.y - 6], [pt.x + 6, pt.y + 6]],
-          { layers: ['building'] }
-        );
-
-        if (hits.length > 0) {
-          // Pick the polygon with the most vertices (the primary structure)
-          const best = hits.reduce((a, b) => {
-            const ca = a.geometry?.coordinates?.[0]?.length ?? 0;
-            const cb = b.geometry?.coordinates?.[0]?.length ?? 0;
-            return cb > ca ? b : a;
-          });
-          onGeoJson(best);
-          const [w, s, e, n] = bbox(best);
-          map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 18 });
-        } else {
-          // Fallback: 75m circle when building tile data isn't available
-          const fallback = circle([lng, lat], 0.075, { steps: 48, units: 'kilometers' });
-          onGeoJson(fallback);
-          const [w, s, e, n] = bbox(fallback);
-          map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 17 });
-        }
+      // Mapbox vector-tile footprint / circle fallback (only when the DB has
+      // no exact footprint near the point).
+      const tileFallback = () => {
+        const onIdle = () => {
+          if (stale) return;
+          stale = true;
+          map.off('idle', onIdle);
+          const pt = map.project([lng, lat]);
+          const hits = map.queryRenderedFeatures(
+            [[pt.x - 6, pt.y - 6], [pt.x + 6, pt.y + 6]],
+            { layers: ['building'] }
+          );
+          if (hits.length > 0) {
+            const best = hits.reduce((a, b) => {
+              const ca = a.geometry?.coordinates?.[0]?.length ?? 0;
+              const cb = b.geometry?.coordinates?.[0]?.length ?? 0;
+              return cb > ca ? b : a;
+            });
+            onGeoJson(best);
+            const [w, s, e, n] = bbox(best);
+            map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 18 });
+          } else {
+            const fallback = circle([lng, lat], 0.075, { steps: 48, units: 'kilometers' });
+            onGeoJson(fallback);
+            const [w, s, e, n] = bbox(fallback);
+            map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 400, maxZoom: 17 });
+          }
+        };
+        map.on('idle', onIdle);
+        detachIdle = () => map.off('idle', onIdle);
       };
 
-      map.on('idle', onIdle);
+      // Exact footprint polygon from building_footprints (migration 029).
+      getBuildingFootprint(lat, lng)
+        .then((geom) => {
+          if (stale) return;
+          if (geom) {
+            const feat = toFeature(geom);
+            onGeoJson(feat);
+            const [w, s, e, n] = bbox(feat);
+            map.fitBounds([[w, s], [e, n]], { padding: 80, duration: 500, maxZoom: 19 });
+          } else {
+            tileFallback();
+          }
+        })
+        .catch(() => { if (!stale) tileFallback(); });
+
       return () => {
         stale = true;
-        map.off('idle', onIdle);
+        if (detachIdle) detachIdle();
       };
     }
 

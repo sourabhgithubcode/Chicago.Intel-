@@ -100,6 +100,27 @@ export async function getBuildingAt(lat, lng, address) {
 }
 
 /**
+ * Exact building-footprint polygon nearest a coordinate (within 60 m), as
+ * GeoJSON geometry. Backed by RPC `building_footprint_at(lat, lng)` (029).
+ * Returns null when no footprint is close (MapView then falls back to the
+ * Mapbox tile footprint / circle).
+ *
+ * @returns {Promise<object|null>} GeoJSON geometry or null
+ */
+export async function getBuildingFootprint(lat, lng) {
+  // Best-effort + optional: call directly (single attempt, no retry/breaker) so
+  // it fails fast and MapView falls back to the tile/circle instantly when the
+  // RPC is slow or absent (e.g. migration 029 not yet applied).
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.rpc('building_footprint_at', { lat, lng });
+    if (error) return null;
+    if (data && typeof data === 'object' && data.type) return data; // scalar RETURNS JSON
+  } catch { /* fall back to tile/circle in MapView */ }
+  return null;
+}
+
+/**
  * Latest successful pipeline_runs.completed_at for a source.
  * Backed by the per-source pipeline_runs row (migrations 005 + 011).
  * Returns null when no successful run exists yet (fresh deploy).
