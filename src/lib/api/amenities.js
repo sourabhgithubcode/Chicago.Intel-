@@ -14,6 +14,18 @@ const SOURCE = {
   url: 'https://developers.google.com/maps/documentation/places/web-service',
 };
 
+// All categories in ONE request (the /amenities_all batch endpoint) — avoids 13
+// serialized round-trips through the single-worker treasurer service.
+// Returns { category: [{ name, distance_m }] } or null. Caller: amenityScore.js.
+export async function getAmenitiesAll(lat, lng) {
+  if (lat == null || lng == null || !API) return null;
+  const res = await fetch(`${API}/amenities_all?lat=${lat}&lng=${lng}`);
+  if (!res.ok) throw new Error(`Amenities HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.error) return null;
+  return data.categories ?? null;
+}
+
 export async function getAmenities(lat, lng, category) {
   if (lat == null || lng == null || !category) return null;
   if (!API) throw new Error('VITE_TREASURER_API_URL not set');

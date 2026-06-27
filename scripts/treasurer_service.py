@@ -490,6 +490,93 @@ def amenities():
     return jsonify({"category": category, "places": rows, "cached": False})
 
 
+@app.get("/amenities_all")
+def amenities_all():
+    """All categories in ONE Overpass query, grouped by category. The frontend
+    needs every category for the amenity score; calling /amenities 13× serializes
+    on the single gunicorn worker and times out, so batch into one round-trip."""
+    try:
+        lat = float(request.args.get("lat", ""))
+        lng = float(request.args.get("lng", ""))
+    except ValueError:
+        return jsonify({"error": "lat and lng required"}), 400
+
+    addr_key = f"{lat:.4f},{lng:.4f}"
+    client = get_admin_client()
+    cached = (client.table("amenities_cache")
+              .select("name,distance_m,category,cached_at")
+              .eq("address_key", addr_key).execute().data or [])
+    if cached:
+        newest = max(_parse_ts(r["cached_at"]) for r in cached)
+        if (datetime.now(timezone.utc) - newest).total_seconds() < AMENITY_TTL_SECONDS:
+            out = {cat: [] for cat in _OSM_TAGS}
+            for r in cached:
+                out.setdefault(r["category"], []).append(
+                    {"name": r["name"], "distance_m": r["distance_m"]})
+            for cat in out:
+                out[cat].sort(key=lambda x: x["distance_m"] if x["distance_m"] is not None else 9999)
+            return jsonify({"categories": out, "cached": True})
+
+    # one Overpass query across every category's tags (dedupe identical filters)
+    parts, seen = [], set()
+    for tags in _OSM_TAGS.values():
+        for (k, v) in tags:
+            if (k, v) in seen:
+                continue
+            seen.add((k, v))
+            parts.append(f'node["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});')
+            parts.append(f'way["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});')
+    query = f"[out:json][timeout:25];({''.join(parts)});out center 80 tags;"
+    elements = None
+    for ep in OVERPASS_ENDPOINTS:
+        try:
+            r = requests.post(
+                ep, data={"data": query},
+                headers={"User-Agent": "Chicago.Intel/1.0 (neighborhood dashboard)"},
+                timeout=40,
+            )
+            r.raise_for_status()
+            elements = r.json().get("elements", [])
+            break
+        except Exception:
+            continue
+    if elements is None:
+        return jsonify({"error": "overpass lookup failed"}), 502
+
+    now = datetime.now(timezone.utc).isoformat()
+    expires = (datetime.now(timezone.utc) +
+               __import__("datetime").timedelta(seconds=AMENITY_TTL_SECONDS)).isoformat()
+    rows, out = [], {cat: [] for cat in _OSM_TAGS}
+    for el in elements:
+        if el.get("type") == "node":
+            plat, plng = el.get("lat"), el.get("lon")
+        else:
+            c = el.get("center") or {}
+            plat, plng = c.get("lat"), c.get("lon")
+        if plat is None or plng is None:
+            continue
+        dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+        if dist > AMENITY_RADIUS_M:
+            continue
+        etags = el.get("tags") or {}
+        name, place_id = etags.get("name"), f"osm/{el.get('type')}/{el.get('id')}"
+        for cat, ctags in _OSM_TAGS.items():
+            if any(etags.get(k) == v for (k, v) in ctags):
+                rows.append({"address_key": addr_key, "category": cat, "name": name,
+                             "distance_m": dist, "price_level": None, "place_id": place_id,
+                             "cached_at": now, "expires_at": expires})
+                out[cat].append({"name": name, "distance_m": dist})
+    for cat in out:
+        out[cat].sort(key=lambda x: x["distance_m"])
+        out[cat] = out[cat][:5]
+    if rows:
+        try:
+            client.table("amenities_cache").insert(rows).execute()
+        except Exception:
+            pass  # cache is best-effort; still return live results
+    return jsonify({"categories": out, "cached": False})
+
+
 # Mapbox Directions — driving / walking / cycling commute times. 30d cache.
 # Free tier 100K req/mo well covers expected usage.
 MAPBOX_URL = "https://api.mapbox.com/directions/v5/mapbox"

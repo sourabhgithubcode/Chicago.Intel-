@@ -1,10 +1,10 @@
-// Building-level amenity score from nearby places (Google Places via the
-// /amenities proxy) + transit from our own CTA data. Each category is scored by
-// distance to its nearest instance, then weighted: Essential 50% / Lifestyle
-// 30% / Errands 20% (per CLAUDE.md amenity weights). Hotels are shown but not
-// scored. Caller: AmenityScore.jsx.
+// Building-level amenity score from nearby places (OpenStreetMap via the
+// /amenities_all proxy — one batched call) + transit from our own CTA data.
+// Each category is scored by distance to its nearest instance, then weighted:
+// Essential 50% / Lifestyle 30% / Errands 20% (per CLAUDE.md amenity weights).
+// Hotels are shown but not scored. Caller: AmenityScore.jsx.
 
-import { getAmenities } from './amenities.js';
+import { getAmenitiesAll } from './amenities.js';
 import { getNearestCTAStop } from './supabase.js';
 
 const CATS = [
@@ -36,21 +36,16 @@ function distScore(m) {
 export async function getAmenityScore(lat, lng) {
   if (lat == null || lng == null) return null;
 
-  const results = await Promise.all(
-    CATS.map(async (c) => {
-      try {
-        const a = await getAmenities(lat, lng, c.key);
-        const nearest = (a?.places ?? [])
-          .filter((p) => p.distance_m != null)
-          .sort((x, y) => x.distance_m - y.distance_m)
-          .slice(0, 2)
-          .map((p) => ({ name: p.name ?? null, dist: p.distance_m }));
-        return { ...c, nearest, dist: nearest[0]?.dist ?? null };
-      } catch {
-        return { ...c, nearest: [], dist: null, err: true };
-      }
-    }),
-  );
+  let cats = {};
+  try { cats = (await getAmenitiesAll(lat, lng)) || {}; } catch { cats = {}; }
+  const results = CATS.map((c) => {
+    const nearest = (cats[c.key] ?? [])
+      .filter((p) => p.distance_m != null)
+      .sort((x, y) => x.distance_m - y.distance_m)
+      .slice(0, 2)
+      .map((p) => ({ name: p.name ?? null, dist: p.distance_m }));
+    return { ...c, nearest, dist: nearest[0]?.dist ?? null };
+  });
 
   let cta = null;
   try { cta = await getNearestCTAStop(lat, lng); } catch { /* transit optional */ }
