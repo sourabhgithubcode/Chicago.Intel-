@@ -10,7 +10,12 @@
 -- Fix: do the nearest-neighbour search with the geometry <-> operator (this
 -- IS index-backed), take the single nearest row, then cast only that one row
 -- to geography for an accurate metre distance and apply the 100 m cutoff.
--- Signature/return columns are identical to migration 005.
+-- The live function is the migration-005 form WITHOUT purchase_year/_price (the
+-- 003 form is what's deployed), so adding those columns changes the return type
+-- and CREATE OR REPLACE is rejected — DROP first. The frontend spreads whatever
+-- columns the RPC returns (shapeBuilding), so including purchase_year/_price
+-- only fills the "last sale" row on the spatial fallback path too.
+DROP FUNCTION IF EXISTS find_building_at(double precision, double precision);
 
 CREATE OR REPLACE FUNCTION find_building_at(lat FLOAT, lng FLOAT)
 RETURNS TABLE(
