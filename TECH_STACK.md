@@ -75,8 +75,9 @@ python-dotenv   # env var loading
 | API | Purpose | Cost |
 |---|---|---|
 | Google Maps Geocoding | Address → lat/lng | $5/1K after $200 free credit = ~28K free |
-| Google Places | Amenity search + price_level | $17/1K after free credit = ~10K free |
-| Mapbox | Base map tiles | 50K loads/mo free |
+| OpenStreetMap Overpass | Amenity search (distance-based score) | Free, no key |
+| Google Places | price_level signal (dining/grocery tier) | $17/1K after free credit = ~10K free |
+| Mapbox | Base map tiles + address autocomplete (Search JS SDK) | 50K loads/mo free |
 | FEMA NFHL | Flood zone lookup | Free |
 | Census API | ACS rent data | Free with key |
 | Chicago Data Portal (Socrata) | CPD, 311, etc. | Free with app token |

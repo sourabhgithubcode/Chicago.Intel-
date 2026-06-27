@@ -4,6 +4,56 @@ All changes documented with data source, confidence impact, and methodology note
 
 ---
 
+## [2026-06-27] — Live Data Layer, Map Polish & Data-Engineering Showcases
+
+### Added
+- Data-engineering tooling showcases — 7 parallel reference implementations of
+  the CPD bronze→silver transform, indexed by `DATA_ENGINEERING.md`:
+  - `spark/` — PySpark bronze→silver + transformer parity check
+  - `processing/` — Polars transform + DuckDB analytics
+  - `ingestion/` — dlt Socrata pipeline
+  - `validation/` — Great Expectations suite + Pydantic models
+  - `airflow/` — DAG for the full pipeline
+  - `orchestration_extra/` — Prefect flow, Dask transform, SQLAlchemy models
+  - `dbt/` — gold models (address/CCA/tract) + sources + schema tests
+- Building amenity score via OpenStreetMap Overpass (free, no API key)
+  - 13 categories within 0.25mi (402m), scored by walking distance to nearest place
+    (grocery, pharmacy, laundry, transit, cafe, gym, restaurant, park, bank, ATM,
+    post office, convenience, hotel); shows the nearest 2 named places per category
+  - Grouped weights: Essentials 50% + Lifestyle 30% + Errands 20%
+  - `src/lib/api/amenityScore.js`, `AmenityScore.jsx`, treasurer service `/amenities`
+- Live address autocomplete via Mapbox Search JS SDK (`SearchBox`) — `SearchBar.jsx`
+- Exact building footprint highlight on the map (replaces generic circle)
+  - migration 029 `building_footprint_at` RPC + GIST index
+- Map style switcher + angled 3D building view (fill-extrusion massing,
+  pitch/bearing easing) + smooth boundary fade transitions — `MapView.jsx`
+- Geolocation default on load (Chicago bounding-box guard, falls back to the
+  address prompt outside it) — `App.jsx`
+- Street View building photo + address no-wrap — `BuildingDetail.jsx`
+- Why-tooltips explaining scoring methodology on scores
+
+### Changed
+- Amenities: Google Places → OpenStreetMap Overpass (free, no key) —
+  treasurer service `/amenities` + frontend wrappers
+- Amenity empty-state wording: "lookup unavailable" (not "not configured")
+
+### Fixed
+- Migration 025: corrected `cpd_incidents.type` — silver load classified crime
+  by the IUCR 2-char prefix, dropping ~21% of crime (theft) to 'other' and
+  filing aggravated assault as 'property'; reclassified violent/property/other
+- Migration 026: anon SELECT (RLS) policies on `ccas` + `tracts` — the anon key
+  previously got 0 rows, blanking the CCA card, breadcrumb, displacement, and
+  map CCA/tract polygons
+- Migration 027: SRID-0 containment bug in the cca/tract/displacement
+  containing-point RPCs
+- Migration 028: fast `find_building_at` via geometry KNN index (was a slow scan)
+
+### Data Sources
+- OpenStreetMap Overpass API (amenity presence/distance) — replaces Google
+  Places for the amenity score; distance signal only, not quality/price/hours
+
+---
+
 ## [Unreleased] — V2 Real Variable Model
 
 ### Added
