@@ -392,6 +392,10 @@ _PLACE_TYPE_MAP = {
     "park":      "park",
     "bank":      "bank",
     "laundry":   "laundry",
+    "post_office": "post_office",
+    "atm":         "atm",
+    "hotel":       "lodging",
+    "convenience": "convenience_store",
 }
 
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Breadcrumb from './components/Breadcrumb.jsx';
 import MapView from './components/MapView.jsx';
+import AmenityScore from './components/sections/AmenityScore.jsx';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
 import CcaOverview from './components/sections/CcaOverview.jsx';
 import DisplacementRisk from './components/sections/DisplacementRisk.jsx';
@@ -8,19 +9,17 @@ import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
 import SearchBar from './components/sections/SearchBar.jsx';
 import TaxBill from './components/sections/TaxBill.jsx';
 import { getCcaAt, getTractAt } from './lib/api/supabase.js';
+import { reverseGeocode } from './lib/api/geocode.js';
 
-const DEFAULT = {
-  lat: 41.8789,
-  lng: -87.6359,
-  address: '233 S Wacker Dr (default)',
-  zip: null,
-};
+// Chicago bounding box — geolocation outside it falls back to the type-prompt.
+const CHI = { w: -87.940, e: -87.524, s: 41.644, n: 42.023 };
 
 export default function App() {
-  const [target, setTarget] = useState(DEFAULT);
+  const [target, setTarget] = useState(null);
   const [pin, setPin] = useState(null);
   const [layer, setLayer] = useState('building');
   const [context, setContext] = useState({ cca: null, tract: null });
+  const [geoStatus, setGeoStatus] = useState('locating'); // locating | denied
   const [splitPct, setSplitPct] = useState(50);
   const dragging = useRef(false);
   const containerRef = useRef(null);
@@ -63,6 +62,25 @@ export default function App() {
     setPin(b?.pin ?? null);
   }, []);
 
+  // On load, offer to use the browser's location. In-Chicago → show that
+  // address by default; denied / off-Chicago / unsupported → type-address prompt.
+  useEffect(() => {
+    if (!('geolocation' in navigator)) { setGeoStatus('denied'); return; }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        if (lat < CHI.s || lat > CHI.n || lng < CHI.w || lng > CHI.e) {
+          setGeoStatus('denied');
+          return;
+        }
+        const address = (await reverseGeocode(lat, lng)) || 'Your location';
+        handleResult({ lat, lng, address });
+      },
+      () => setGeoStatus('denied'),
+      { timeout: 8000, maximumAge: 600000 },
+    );
+  }, [handleResult]);
+
   return (
     <div ref={containerRef} className="flex h-screen overflow-hidden bg-bg">
       {/* ── Left: scrollable data panel ── */}
@@ -82,45 +100,48 @@ export default function App() {
             </p>
           </header>
 
-          <Breadcrumb
-            layer={layer}
-            ccaName={context.cca?.name}
-            tractId={context.tract?.id}
-            address={target.address !== DEFAULT.address ? target.address : null}
-            onLayerChange={setLayer}
-          />
-
           <SearchBar onResult={handleResult} />
 
-          {/* ── Layer-specific data sections ── */}
-          {layer === 'city' && (
+          {!target ? (
             <p className="text-t2 text-sm text-center py-8">
-              Search an address above to explore building-level intelligence.
+              {geoStatus === 'locating'
+                ? 'Locating you…'
+                : 'Type a Chicago address above to begin.'}
             </p>
-          )}
-
-          {layer === 'cca' && (
-            <CcaOverview ccaId={context.cca?.id} />
-          )}
-
-          {layer === 'tract' && (
+          ) : (
             <>
-              <NearestCTAStop lat={target.lat} lng={target.lng} />
-              <DisplacementRisk lat={target.lat} lng={target.lng} />
-            </>
-          )}
-
-          {layer === 'building' && (
-            <>
-              <BuildingDetail
-                lat={target.lat}
-                lng={target.lng}
+              <Breadcrumb
+                layer={layer}
+                ccaName={context.cca?.name}
+                tractId={context.tract?.id}
                 address={target.address}
-                onLoaded={handleBuildingLoaded}
+                onLayerChange={setLayer}
               />
-              <TaxBill pin={pin} />
-              <NearestCTAStop lat={target.lat} lng={target.lng} />
-              <DisplacementRisk lat={target.lat} lng={target.lng} />
+
+              {/* ── Layer-specific data sections ── */}
+              {layer === 'cca' && <CcaOverview ccaId={context.cca?.id} />}
+
+              {layer === 'tract' && (
+                <>
+                  <NearestCTAStop lat={target.lat} lng={target.lng} />
+                  <DisplacementRisk lat={target.lat} lng={target.lng} />
+                </>
+              )}
+
+              {layer === 'building' && (
+                <>
+                  <BuildingDetail
+                    lat={target.lat}
+                    lng={target.lng}
+                    address={target.address}
+                    onLoaded={handleBuildingLoaded}
+                  />
+                  <TaxBill pin={pin} />
+                  <AmenityScore lat={target.lat} lng={target.lng} />
+                  <NearestCTAStop lat={target.lat} lng={target.lng} />
+                  <DisplacementRisk lat={target.lat} lng={target.lng} />
+                </>
+              )}
             </>
           )}
         </div>
@@ -144,9 +165,9 @@ export default function App() {
       {/* ── Right: Mapbox map fills remaining space ── */}
       <div className="h-screen min-w-0 flex-1">
         <MapView
-          layer={layer}
-          lat={target.lat}
-          lng={target.lng}
+          layer={target ? layer : 'city'}
+          lat={target?.lat}
+          lng={target?.lng}
           ccaId={context.cca?.id}
           tractGeoid={context.tract?.id}
         />

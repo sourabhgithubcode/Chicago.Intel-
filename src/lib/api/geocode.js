@@ -17,6 +17,25 @@ function inChicagoBbox(x, y) {
   );
 }
 
+// Reverse-geocode a coordinate to a street address via Mapbox (for the
+// browser-geolocation default). Returns the address string or null.
+// Caller: App.jsx.
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+export async function reverseGeocode(lat, lng) {
+  if (!MAPBOX_TOKEN) return null;
+  try {
+    const res = await fetch(
+      `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lng}&latitude=${lat}` +
+      `&types=address&limit=1&access_token=${MAPBOX_TOKEN}`
+    );
+    if (!res.ok) return null;
+    const f = (await res.json())?.features?.[0];
+    return f?.properties?.full_address || f?.properties?.name || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function geocodeAddress(query) {
   if (!query || !query.trim()) return null;
   if (!API) throw new Error('VITE_TREASURER_API_URL not set');
