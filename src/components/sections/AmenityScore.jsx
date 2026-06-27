@@ -85,7 +85,7 @@ export default function AmenityScore({ lat, lng }) {
         <p className="text-rose">{state.err?.userMessage ?? 'Could not load amenities.'}</p>
       )}
       {state.status === 'empty' && (
-        <p className="text-t2">Amenity data unavailable (Google Places not configured).</p>
+        <p className="text-t2">Nearby-places lookup is unavailable right now.</p>
       )}
 
       {state.status === 'ok' && (
