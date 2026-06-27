@@ -14,16 +14,34 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const CHICAGO = { longitude: -87.65, latitude: 41.85, zoom: 10 };
 
-const FILL_LAYER = {
-  id: 'poly-fill',
-  type: 'fill',
-  paint: { 'fill-color': 'rgba(37,99,235,0.10)', 'fill-outline-color': 'rgba(37,99,235,0)' },
-};
-const LINE_LAYER = {
-  id: 'poly-line',
-  type: 'line',
-  paint: { 'line-color': 'rgba(37,99,235,0.80)', 'line-width': 2 },
-};
+// User-selectable base map styles (switcher control, top-right of the map).
+const MAP_STYLES = [
+  { id: 'light', label: 'Light', url: 'mapbox://styles/mapbox/light-v11' },
+  { id: 'dark', label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11' },
+  { id: 'streets', label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12' },
+  { id: 'satellite', label: 'Satellite', url: 'mapbox://styles/mapbox/satellite-streets-v12' },
+];
+
+// Highlight layers. line/fill opacity is driven by `reveal` (0 → target) with a
+// paint transition so each new boundary fades/draws in smoothly as the user
+// zooms between levels instead of popping.
+const TRANS = { duration: 600 };
+function fillLayer(reveal) {
+  return {
+    id: 'poly-fill', type: 'fill',
+    paint: { 'fill-color': 'rgba(37,99,235,0.12)', 'fill-opacity': reveal, 'fill-opacity-transition': TRANS },
+  };
+}
+function lineLayer(reveal) {
+  return {
+    id: 'poly-line', type: 'line',
+    paint: {
+      'line-color': 'rgba(37,99,235,0.9)', 'line-width': 2.5,
+      'line-opacity': reveal,
+      'line-opacity-transition': TRANS, 'line-width-transition': TRANS,
+    },
+  };
+}
 
 function toFeature(geom) {
   if (!geom) return null;
@@ -158,8 +176,47 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
   return null;
 }
 
+// Tilts the camera for an angled 3D view (Google-Maps style). Building massing
+// comes from the 3d-buildings fill-extrusion layer rendered below.
+function PitchController({ threeD }) {
+  const { current: map } = useMap();
+  useEffect(() => {
+    if (!map) return;
+    map.easeTo({ pitch: threeD ? 60 : 0, bearing: threeD ? -20 : 0, duration: 700 });
+  }, [threeD, map]);
+  return null;
+}
+
+// 3D building massing from the vector style's building layer (gray extrusions —
+// architectural massing, not photoreal). Present on light/dark/streets/sat-streets.
+const BUILDINGS_3D = {
+  id: '3d-buildings',
+  source: 'composite',
+  'source-layer': 'building',
+  type: 'fill-extrusion',
+  minzoom: 14,
+  paint: {
+    'fill-extrusion-color': '#9aa6b2',
+    'fill-extrusion-height': ['coalesce', ['get', 'height'], 10],
+    'fill-extrusion-base': ['coalesce', ['get', 'min_height'], 0],
+    'fill-extrusion-opacity': 0.85,
+  },
+};
+
 export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
   const [geoJson, setGeoJson] = useState(null);
+  const [styleId, setStyleId] = useState('light');
+  const [reveal, setReveal] = useState(1);
+  const [threeD, setThreeD] = useState(false);
+
+  // On each new boundary, drop opacity to 0 then ease back to 1 — the paint
+  // transition makes the border lines slide/adjust in smoothly.
+  useEffect(() => {
+    if (!geoJson) return undefined;
+    setReveal(0);
+    const id = setTimeout(() => setReveal(1), 40);
+    return () => clearTimeout(id);
+  }, [geoJson]);
 
   // A real Mapbox public token starts with "pk." — without one, mapbox-gl throws
   // and renders a blank panel. Degrade gracefully instead of spamming errors.
@@ -178,28 +235,60 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
     );
   }
 
-  return (
-    <Map
-      mapboxAccessToken={TOKEN}
-      initialViewState={CHICAGO}
-      style={{ width: '100%', height: '100%' }}
-      mapStyle="mapbox://styles/mapbox/light-v11"
-    >
-      <FlyController
-        layer={layer}
-        lat={lat}
-        lng={lng}
-        ccaId={ccaId}
-        tractGeoid={tractGeoid}
-        onGeoJson={setGeoJson}
-      />
+  const mapStyle = (MAP_STYLES.find((s) => s.id === styleId) ?? MAP_STYLES[0]).url;
 
-      {geoJson && (
-        <Source id="poly" type="geojson" data={geoJson}>
-          <Layer {...FILL_LAYER} />
-          <Layer {...LINE_LAYER} />
-        </Source>
-      )}
-    </Map>
+  return (
+    <div className="relative h-full w-full">
+      <Map
+        mapboxAccessToken={TOKEN}
+        initialViewState={CHICAGO}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle={mapStyle}
+      >
+        <FlyController
+          layer={layer}
+          lat={lat}
+          lng={lng}
+          ccaId={ccaId}
+          tractGeoid={tractGeoid}
+          onGeoJson={setGeoJson}
+        />
+        <PitchController threeD={threeD} />
+
+        {threeD && <Layer {...BUILDINGS_3D} />}
+
+        {geoJson && (
+          <Source id="poly" type="geojson" data={geoJson}>
+            <Layer {...fillLayer(reveal)} />
+            <Layer {...lineLayer(reveal)} />
+          </Source>
+        )}
+      </Map>
+
+      {/* Base-map style switcher + 3D toggle */}
+      <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg bg-white/90 p-1 shadow-md backdrop-blur">
+        {MAP_STYLES.map((s) => (
+          <button
+            key={s.id}
+            onClick={() => setStyleId(s.id)}
+            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              styleId === s.id ? 'bg-cyan text-white' : 'text-t2 hover:bg-slate-100'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+        <span className="mx-0.5 w-px bg-slate-200" />
+        <button
+          onClick={() => setThreeD((v) => !v)}
+          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+            threeD ? 'bg-cyan text-white' : 'text-t2 hover:bg-slate-100'
+          }`}
+          title="Tilt for an angled 3D view with building massing"
+        >
+          3D
+        </button>
+      </div>
+    </div>
   );
 }

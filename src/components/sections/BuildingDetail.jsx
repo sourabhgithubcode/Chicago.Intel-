@@ -2,11 +2,16 @@
 // 311-derived landlord record (violations + rodent, matched by address).
 // Tax bill (treasurer) and flood_zone are still absent until those land.
 
-import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
+import { Building2, Calendar, Camera, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
+
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+const streetViewUrl = (lat, lng) =>
+  `https://maps.googleapis.com/maps/api/streetview?size=640x360&location=${lat},${lng}` +
+  `&fov=80&pitch=8&source=outdoor&key=${GOOGLE_KEY}`;
 
 const fmtPrice = (n) =>
   n == null ? null : `$${n.toLocaleString('en-US')}`;
@@ -27,12 +32,12 @@ function Row({ icon: Icon, label, value, caveat, tooltip }) {
     </Tooltip>
   ) : label;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
-      <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+    <div className="flex flex-nowrap items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+      <span className="label-mono text-t3 flex shrink-0 items-center gap-1.5 text-xs">
         {Icon && <Icon size={11} />}
         {labelNode}
       </span>
-      <span className="text-t0 text-right">
+      <span className="text-t0 min-w-0 truncate whitespace-nowrap text-right" title={typeof value === 'string' ? value : undefined}>
         {value}
         {caveat && (
           <span className="text-t3 ml-2 text-xs italic">· {caveat}</span>
@@ -45,6 +50,7 @@ function Row({ icon: Icon, label, value, caveat, tooltip }) {
 export default function BuildingDetail({ lat, lng, address, onLoaded }) {
   const [state, setState] = useState({ status: 'loading' });
   const [syncedAt, setSyncedAt] = useState(null);
+  const [showPhoto, setShowPhoto] = useState(false);
 
   useEffect(() => {
     if (lat == null || lng == null) return undefined;
@@ -160,6 +166,32 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
               tooltip="Meters from the parcel centroid to the exact coordinates you searched"
             />
           </div>
+
+          {GOOGLE_KEY && (
+            <div className="pt-1">
+              <button
+                onClick={() => setShowPhoto((v) => !v)}
+                className="flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-t1 transition-colors hover:bg-slate-200"
+              >
+                <Camera size={12} />
+                {showPhoto ? 'Hide building photo' : 'View building (Street View)'}
+              </button>
+              {showPhoto && (
+                <figure className="mt-2">
+                  <img
+                    src={streetViewUrl(lat, lng)}
+                    alt="Street View of the building"
+                    className="w-full rounded-lg border border-slate-200"
+                    loading="lazy"
+                    onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+                  />
+                  <figcaption className="text-t3 mt-1 text-[10px]">
+                    Google Street View · nearest road-level capture · may show an adjacent frontage
+                  </figcaption>
+                </figure>
+              )}
+            </div>
+          )}
 
           <details className="text-t2">
             <summary className="cursor-pointer text-t1 hover:text-t0">
