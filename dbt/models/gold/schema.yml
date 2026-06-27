@@ -1,0 +1,95 @@
+version: 2
+
+models:
+  - name: gold_address_intel
+    description: "One row per building, gold layer for address lookups."
+    columns:
+      - name: pin
+        description: "Cook County PIN — primary key."
+        tests:
+          - not_null
+          - unique
+      - name: cca_id
+        description: "Containing Community Area id."
+        tests:
+          - relationships:
+              to: source('silver', 'ccas')
+              field: id
+      - name: cca_safety_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: cca_walk_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: cca_disp_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: tract_disp_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: landlord_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: violent_5yr
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }
+      - name: property_5yr
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }
+
+  - name: gold_cca_summary
+    description: "One row per Community Area, zoom-10 to 12 map layer."
+    columns:
+      - name: id
+        description: "Community Area id — primary key."
+        tests:
+          - not_null
+          - unique
+      - name: safety_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: walk_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: disp_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: avg_landlord_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: building_count
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }
+      - name: violent_1yr
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }
+
+  - name: gold_tract_summary
+    description: "One row per census tract, zoom-12 to 14 map layer."
+    columns:
+      - name: id
+        description: "Census tract geoid — primary key."
+        tests:
+          - not_null
+          - unique
+      - name: cca_id
+        description: "Parent Community Area id."
+        tests:
+          - relationships:
+              to: source('silver', 'ccas')
+              field: id
+      - name: safety_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: walk_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: disp_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: avg_landlord_score
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0, max_value: 10 }
+      - name: building_count
+        tests:
+          - dbt_utils.accepted_range: { min_value: 0 }

@@ -1,0 +1,35 @@
+version: 2
+
+# Silver-layer tables owned by supabase/migrations/001_create_tables.sql
+# (+ 020_create_displacement_typology.sql). dbt reads these as sources;
+# it does NOT create or manage them. The gold models below select from them.
+sources:
+  - name: silver
+    schema: public
+    description: "Chicago.Intel silver layer (Supabase Postgres, public schema)."
+    tables:
+      - name: ccas
+        description: "77 Community Areas with geometry + scores."
+        columns:
+          - name: id
+            tests: [not_null, unique]
+      - name: tracts
+        description: "~800 census tracts with geometry."
+        columns:
+          - name: id
+            tests: [not_null, unique]
+      - name: buildings
+        description: "Cook County Assessor parcel data, one row per PIN."
+        columns:
+          - name: pin
+            tests: [not_null, unique]
+      - name: cpd_incidents
+        description: "CPD crime incidents with point geometry."
+      - name: complaints_311
+        description: "311 building violations / heat / bed-bug complaints."
+      - name: cta_stops
+        description: "CTA stops with point geometry."
+      - name: parks
+        description: "Park District points + boundaries."
+      - name: displacement_typology
+        description: "UDP per-tract gentrification/displacement typology (static)."

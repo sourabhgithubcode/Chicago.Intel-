@@ -1,0 +1,5 @@
+# Airflow showcase — install alongside scripts/requirements.txt.
+# Pinned to the 2.9 line (matches the constraint set in the task brief).
+# Airflow has its own heavy dep tree; install it in the same venv that already
+# satisfies scripts/requirements.txt (boto3, structlog, requests, geopandas…).
+apache-airflow==2.9.3

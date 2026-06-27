@@ -1,0 +1,13 @@
+# orchestration_extra — additive showcases. Install in the SAME venv that
+# already satisfies scripts/requirements.txt (boto3, structlog, dotenv…).
+#
+#   .venv/bin/pip install -r scripts/requirements.txt
+#   .venv/bin/pip install -r orchestration_extra/requirements.txt
+#
+# Nothing here is imported by scripts/ — these deps are only needed to run the
+# three showcase entrypoints in this directory.
+
+prefect>=2.14,<3        # prefect_flow.py — DAG wrapper around the existing pipeline
+dask[bag]>=2024.1.0     # dask_transform.py — parallel CPD bronze→silver
+SQLAlchemy>=2.0,<3      # sqlalchemy_models.py — ORM scaffold (cannot connect here)
+psycopg2-binary>=2.9    # SQLAlchemy Postgres driver (Supabase pooler)

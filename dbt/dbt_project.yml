@@ -1,0 +1,28 @@
+name: 'chicago_intel'
+version: '1.0.0'
+config-version: 2
+
+# Connection profile — see profiles.yml.template (env_var-driven, no secrets).
+profile: 'chicago_intel'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# ADDITIVE showcase. The gold layer is owned today by
+# supabase/migrations/006_gold_materialized_views.sql. These dbt models
+# recreate that exact SQL via ref()/source() so the gold layer can be
+# rebuilt and tested by dbt once a Postgres connection string exists.
+models:
+  chicago_intel:
+    gold:
+      +schema: public
+      +materialized: table

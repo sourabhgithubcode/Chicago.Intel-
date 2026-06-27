@@ -1,0 +1,6 @@
+# Ingestion showcase deps — separate from the project's main scripts/ deps.
+# Install:  .venv/bin/pip install -r ingestion/requirements.txt
+dlt[duckdb]==1.28.0
+loguru==0.7.3
+python-dotenv>=1.0
+requests>=2.31

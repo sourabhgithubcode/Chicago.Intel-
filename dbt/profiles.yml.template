@@ -1,0 +1,28 @@
+# Copy this file to ~/.dbt/profiles.yml (or set DBT_PROFILES_DIR to this dir
+# and rename to profiles.yml). Every credential is read from the environment
+# via env_var() — NEVER hardcode secrets here or commit a filled-in copy.
+#
+# Required env vars:
+#   SUPABASE_DB_HOST      aws-1-us-east-2.pooler.supabase.com  (Supabase pooler)
+#   SUPABASE_DB_PORT      5432
+#   SUPABASE_DB_NAME      postgres
+#   SUPABASE_DB_USER      postgres.ykbvjfpdqhpipxniwkqf
+#   SUPABASE_DB_PASSWORD  <database password — NOT in this repo's .env>
+#
+# NOTE: the repo .env only carries the Supabase REST service key, which dbt
+# cannot use. dbt-postgres needs the database password. Get it from
+# Supabase dashboard → Project Settings → Database → Connection string.
+
+chicago_intel:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('SUPABASE_DB_HOST') }}"
+      port: "{{ env_var('SUPABASE_DB_PORT') | int }}"
+      dbname: "{{ env_var('SUPABASE_DB_NAME') }}"
+      user: "{{ env_var('SUPABASE_DB_USER') }}"
+      password: "{{ env_var('SUPABASE_DB_PASSWORD') }}"
+      schema: public
+      sslmode: require
+      threads: 4

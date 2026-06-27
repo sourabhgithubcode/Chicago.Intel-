@@ -1,0 +1,9 @@
+# Additive showcase deps (Spark CPD job). Install into the project .venv:
+#   .venv/bin/pip install -r spark/requirements.txt
+# Requires a JVM on PATH (Spark needs Java). Verified on Java 18, local[*].
+pyspark==3.5.7
+# boto3 + python-dotenv already used by scripts/; pinned here for standalone use.
+boto3>=1.34
+python-dotenv>=1.0
+# pyarrow: only for compare_with_transformer.py (pandas.read_parquet engine).
+pyarrow>=15

@@ -59,3 +59,11 @@ yarn-error.log*
 .supabase/
 supabase/.branches/
 supabase/.temp/
+
+# DE-tooling showcase run-artifacts (generated, not source)
+spark/out/
+processing/out/
+ingestion/*.duckdb
+ingestion/logs/
+dbt/.user.yml
+dbt/package-lock.yml

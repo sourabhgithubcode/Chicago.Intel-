@@ -1,0 +1,10 @@
+# Local PROCESSING showcase — Polars + DuckDB + PyArrow.
+# Standalone from scripts/requirements.txt; install with:
+#   .venv/bin/pip install -r processing/requirements.txt
+# rtcompat runtime needed when CPython runs under x86-64 emulation (no AVX);
+# on a native-AVX interpreter plain `polars==1.36.1` also works.
+polars[rtcompat]==1.36.1
+duckdb==1.4.5
+pyarrow==21.0.0
+boto3==1.34.51
+python-dotenv==1.0.1

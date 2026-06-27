@@ -1,0 +1,11 @@
+# Validation layer deps — kept SEPARATE from the pipeline's runtime deps.
+# Install into the project venv:
+#   .venv/bin/pip install -r validation/requirements.txt
+pydantic>=2,<3
+great_expectations>=0.18,<0.19
+pandas>=2,<3
+python-dotenv>=1.0
+# boto3 + requests are already used by scripts/; pinned loosely here so the
+# validation layer installs standalone too.
+boto3>=1.26
+requests>=2.28
