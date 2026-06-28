@@ -2,17 +2,11 @@
 // 311-derived landlord record (violations + rodent, matched by address).
 // Tax bill (treasurer) and flood_zone are still absent until those land.
 
-import { Building2, Calendar, Camera, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
+import { Building2, Calendar, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import Map from 'react-map-gl';
 import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
-
-// Aerial photo of the building from Mapbox Static Images — uses the working
-// Mapbox token (Google Street View needs the Street View Static API enabled,
-// which isn't, so it returned no image).
-const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
 const fmtPrice = (n) =>
   n == null ? null : `$${n.toLocaleString('en-US')}`;
@@ -51,7 +45,6 @@ function Row({ icon: Icon, label, value, caveat, tooltip }) {
 export default function BuildingDetail({ lat, lng, address, onLoaded }) {
   const [state, setState] = useState({ status: 'loading' });
   const [syncedAt, setSyncedAt] = useState(null);
-  const [showPhoto, setShowPhoto] = useState(false);
 
   useEffect(() => {
     if (lat == null || lng == null) return undefined;
@@ -172,33 +165,6 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
               tooltip="Meters from the parcel centroid to the exact coordinates you searched"
             />
           </div>
-
-          {MAPBOX_TOKEN && (
-            <div className="pt-1">
-              <button
-                onClick={() => setShowPhoto((v) => !v)}
-                className="flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-t1 transition-colors hover:bg-slate-200"
-              >
-                <Camera size={12} />
-                {showPhoto ? 'Hide building view' : 'View building (3D)'}
-              </button>
-              {showPhoto && (
-                <figure className="mt-2">
-                  <div className="h-72 w-full overflow-hidden rounded-lg border border-slate-200">
-                    <Map
-                      mapboxAccessToken={MAPBOX_TOKEN}
-                      initialViewState={{ longitude: lng, latitude: lat, zoom: 17.5, pitch: 62, bearing: 30 }}
-                      mapStyle="mapbox://styles/mapbox/standard"
-                      style={{ width: '100%', height: '100%' }}
-                    />
-                  </div>
-                  <figcaption className="text-t3 mt-1 text-[10px]">
-                    3D buildings (Mapbox) · drag to pan · right-drag or ⌃-drag to circle · scroll to zoom
-                  </figcaption>
-                </figure>
-              )}
-            </div>
-          )}
 
           <details className="text-t2">
             <summary className="cursor-pointer text-t1 hover:text-t0">
