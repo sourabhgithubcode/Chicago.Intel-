@@ -34,6 +34,12 @@ export async function ccaContaining(lat, lng) {
   return f ? { id: f.properties.id, name: f.properties.name } : null;
 }
 
+/** All 77 CCA polygons as a FeatureCollection — used to outline the whole city
+ *  at the city zoom level. */
+export async function allCcaFeatures() {
+  return load();
+}
+
 /** GeoJSON geometry for one CCA, or null. */
 export async function ccaGeometry(id) {
   const fc = await load();

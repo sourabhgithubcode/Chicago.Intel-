@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import Map, { Layer, Source, useMap } from 'react-map-gl';
 import { bbox, circle } from '@turf/turf';
 import { getBuildingFootprint, getCcaGeojson, getTractGeojson } from '../lib/api/supabase.js';
+import { allCcaFeatures } from '../lib/api/ccaStatic.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -54,11 +55,27 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
   useEffect(() => {
     if (!map) return;
 
-    // ── City ──────────────────────────────────────────────────────────────
+    // ── City — outline the whole city (all 77 CCA polygons) ───────────────
     if (layer === 'city') {
-      map.flyTo({ center: [CHICAGO.longitude, CHICAGO.latitude], zoom: CHICAGO.zoom, duration: 800 });
-      onGeoJson(null);
-      return;
+      let stale = false;
+      allCcaFeatures()
+        .then((fc) => {
+          if (stale || !map) return;
+          if (!fc?.features?.length) {
+            map.flyTo({ center: [CHICAGO.longitude, CHICAGO.latitude], zoom: CHICAGO.zoom, duration: 800 });
+            onGeoJson(null);
+            return;
+          }
+          onGeoJson(fc);
+          const [w, s, e, n] = bbox(fc);
+          map.fitBounds([[w, s], [e, n]], { padding: 30, duration: 800 });
+        })
+        .catch(() => {
+          if (stale || !map) return;
+          map.flyTo({ center: [CHICAGO.longitude, CHICAGO.latitude], zoom: CHICAGO.zoom, duration: 800 });
+          onGeoJson(null);
+        });
+      return () => { stale = true; };
     }
 
     // ── Building — exact footprint from our DB, then tile, then circle ────

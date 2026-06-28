@@ -8,10 +8,12 @@ import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
-const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-const streetViewUrl = (lat, lng) =>
-  `https://maps.googleapis.com/maps/api/streetview?size=640x360&location=${lat},${lng}` +
-  `&fov=80&pitch=8&source=outdoor&key=${GOOGLE_KEY}`;
+// Aerial photo of the building from Mapbox Static Images — uses the working
+// Mapbox token (Google Street View needs the Street View Static API enabled,
+// which isn't, so it returned no image).
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
+const buildingImageUrl = (lat, lng) =>
+  `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${lng},${lat},18.5,0/640x360@2x?access_token=${MAPBOX_TOKEN}`;
 
 const fmtPrice = (n) =>
   n == null ? null : `$${n.toLocaleString('en-US')}`;
@@ -172,26 +174,26 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
             />
           </div>
 
-          {GOOGLE_KEY && (
+          {MAPBOX_TOKEN && (
             <div className="pt-1">
               <button
                 onClick={() => setShowPhoto((v) => !v)}
                 className="flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-t1 transition-colors hover:bg-slate-200"
               >
                 <Camera size={12} />
-                {showPhoto ? 'Hide building photo' : 'View building (Street View)'}
+                {showPhoto ? 'Hide building photo' : 'View building (satellite)'}
               </button>
               {showPhoto && (
                 <figure className="mt-2">
                   <img
-                    src={streetViewUrl(lat, lng)}
-                    alt="Street View of the building"
+                    src={buildingImageUrl(lat, lng)}
+                    alt="Satellite view of the building"
                     className="w-full rounded-lg border border-slate-200"
                     loading="lazy"
                     onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
                   />
                   <figcaption className="text-t3 mt-1 text-[10px]">
-                    Google Street View · nearest road-level capture · may show an adjacent frontage
+                    Mapbox satellite · aerial view at this location
                   </figcaption>
                 </figure>
               )}
