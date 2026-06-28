@@ -3,7 +3,7 @@ import Breadcrumb from './components/Breadcrumb.jsx';
 import MapView from './components/MapView.jsx';
 import AmenityScore from './components/sections/AmenityScore.jsx';
 import BuildingDetail from './components/sections/BuildingDetail.jsx';
-import CcaOverview from './components/sections/CcaOverview.jsx';
+import AreaScores from './components/sections/AreaScores.jsx';
 import DisplacementRisk from './components/sections/DisplacementRisk.jsx';
 import NearestCTAStop from './components/sections/NearestCTAStop.jsx';
 import SearchBar from './components/sections/SearchBar.jsx';
@@ -118,11 +118,14 @@ export default function App() {
                 onLayerChange={setLayer}
               />
 
-              {/* ── Layer-specific data sections ── */}
-              {layer === 'cca' && <CcaOverview ccaId={context.cca?.id} />}
+              {/* ── Layer-specific data sections (level-recalculated scores) ── */}
+              {layer === 'city' && <AreaScores level="city" />}
+
+              {layer === 'cca' && <AreaScores level="cca" id={context.cca?.id} />}
 
               {layer === 'tract' && (
                 <>
+                  <AreaScores level="tract" id={context.tract?.id} />
                   <NearestCTAStop lat={target.lat} lng={target.lng} />
                   <DisplacementRisk lat={target.lat} lng={target.lng} />
                 </>

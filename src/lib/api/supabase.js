@@ -218,6 +218,54 @@ export async function getCcaById(ccaId) {
   return ccaById(ccaId);
 }
 
+/**
+ * Census-tract scores (the tract's OWN values, not its CCA's). Backed by the
+ * tracts table (anon SELECT via migration 026). safety/walk are ~59% filled;
+ * rent/displacement ~96%. Caller: AreaScores.jsx (tract level).
+ */
+export async function getTractById(geoid) {
+  if (!supabase || geoid == null) return null;
+  const { data, error } = await supabase
+    .from('tracts')
+    .select('id,name,rent_median,safety_score,walk_score,disp_score,data_vintage')
+    .eq('id', geoid)
+    .maybeSingle();
+  if (!error && data) return { ...data, name: data.name || `Tract ${geoid}` };
+  return null;
+}
+
+/**
+ * Citywide aggregate across the 77 Community Areas — median of CCA median rents,
+ * mean of the CCA scores. A rough citywide signal (aggregate of aggregates).
+ * Memoized for the session. Caller: AreaScores.jsx (city level).
+ */
+let _cityScores;
+export async function getCityScores() {
+  if (_cityScores !== undefined) return _cityScores;
+  if (!supabase) return (_cityScores = null);
+  const { data } = await supabase
+    .from('ccas')
+    .select('rent_median,safety_score,walk_score,disp_score');
+  if (!data?.length) return (_cityScores = null);
+  const median = (xs) => {
+    const s = xs.filter((x) => x != null).sort((a, b) => a - b);
+    return s.length ? s[Math.floor(s.length / 2)] : null;
+  };
+  const mean = (k) => {
+    const v = data.map((r) => r[k]).filter((x) => x != null);
+    return v.length ? +(v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : null;
+  };
+  _cityScores = {
+    name: 'Chicago',
+    rent_median: median(data.map((r) => r.rent_median)),
+    safety_score: mean('safety_score'),
+    walk_score: mean('walk_score'),
+    disp_score: mean('disp_score'),
+    data_vintage: '2019–23',
+  };
+  return _cityScores;
+}
+
 export async function getNearestCTAStop(lat, lng) {
   const rows = await rpc('nearest_cta', { lat, lng });
   if (!rows || rows.length === 0) return null;
