@@ -24,14 +24,14 @@ export default function SearchBar({ onResult, initialValue = '' }) {
 
   return (
     <div className="glass-2 space-y-2 p-4">
-      <label className="label-mono text-t3 block text-xs">chicago address</label>
+      <label className="label-mono text-t3 block text-xs">enter your address</label>
       {TOKEN ? (
         <SearchBox
           accessToken={TOKEN}
           value={value}
           onChange={(d) => setValue(d)}
           onRetrieve={handleRetrieve}
-          placeholder="233 S Wacker Dr"
+          placeholder="123 Example St"
           options={{
             language: 'en',
             country: 'US',

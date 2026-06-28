@@ -505,23 +505,10 @@ def amenities_all():
 
     addr_key = f"{lat:.4f},{lng:.4f}"
     client = get_admin_client()
-    cached = (client.table("amenities_cache")
-              .select("name,distance_m,category,cached_at")
-              .eq("address_key", addr_key).execute().data or [])
-    if cached:
-        newest = max(_parse_ts(r["cached_at"]) for r in cached)
-        if (datetime.now(timezone.utc) - newest).total_seconds() < AMENITY_TTL_SECONDS:
-            out = {cat: [] for cat in _OSM_TAGS}
-            for r in cached:
-                out.setdefault(r["category"], []).append(
-                    {"name": r["name"], "distance_m": r["distance_m"]})
-            for cat in out:
-                out[cat].sort(key=lambda x: x["distance_m"] if x["distance_m"] is not None else 9999)
-            return jsonify({"categories": out, "cached": True})
-
     now = datetime.now(timezone.utc).isoformat()
     expires = (datetime.now(timezone.utc) +
                __import__("datetime").timedelta(seconds=AMENITY_TTL_SECONDS)).isoformat()
+    _dkey = lambda x: x["distance_m"] if x["distance_m"] is not None else 10 ** 9
 
     def _query(tag_map, radius, out_n):
         parts, seen = [], set()
@@ -569,29 +556,67 @@ def amenities_all():
                     o[cat].append({"name": nm, "distance_m": dist})
         return o, rws
 
+    # For categories with nothing in `out`, widen to ~1.5mi to find the real
+    # nearest; for any STILL empty, write a null sentinel so we cache "queried,
+    # genuinely none" and don't re-query it every load. Returns rows to insert.
+    def _fill_empties(out):
+        new_rows = []
+        empty = {c: _OSM_TAGS[c] for c in _OSM_TAGS if not out.get(c)}
+        if empty:
+            wide = _query(empty, AMENITY_WIDE_RADIUS_M, 60)
+            if wide:
+                o2, r2 = _classify(wide, empty, AMENITY_WIDE_RADIUS_M)
+                for c in empty:
+                    out[c] = o2.get(c, [])
+                new_rows += r2
+        for c in _OSM_TAGS:
+            if not out.get(c):
+                out[c] = []
+                new_rows.append({"address_key": addr_key, "category": c, "name": None,
+                                 "distance_m": None, "price_level": None, "place_id": None,
+                                 "cached_at": now, "expires_at": expires})
+        return new_rows
+
+    def _respond(out, cached):
+        for cat in out:
+            out[cat].sort(key=_dkey)
+            out[cat] = out[cat][:5]
+        return jsonify({"categories": out, "cached": cached})
+
+    # ── cached? group it; still widen any empty categories (e.g. rows cached by
+    # the old 0.25mi-only version) so every location shows the nearest. ──
+    cached = (client.table("amenities_cache")
+              .select("name,distance_m,category,cached_at")
+              .eq("address_key", addr_key).execute().data or [])
+    if cached:
+        newest = max(_parse_ts(r["cached_at"]) for r in cached)
+        if (datetime.now(timezone.utc) - newest).total_seconds() < AMENITY_TTL_SECONDS:
+            out = {cat: [] for cat in _OSM_TAGS}
+            for r in cached:
+                out.setdefault(r["category"], []).append(
+                    {"name": r["name"], "distance_m": r["distance_m"]})
+            if all(out[c] for c in _OSM_TAGS):
+                return _respond(out, True)
+            new_rows = _fill_empties(out)
+            if new_rows:
+                try:
+                    client.table("amenities_cache").insert(new_rows).execute()
+                except Exception:
+                    pass
+            return _respond(out, "partial")
+
+    # ── fresh: 0.25mi for all, then widen the empties ──
     elements = _query(_OSM_TAGS, AMENITY_RADIUS_M, 80)
     if elements is None:
         return jsonify({"error": "overpass lookup failed"}), 502
     out, rows = _classify(elements, _OSM_TAGS, AMENITY_RADIUS_M)
-
-    # categories with nothing within the walkable radius → widen to the nearest
-    empty = {c: _OSM_TAGS[c] for c in out if not out[c]}
-    if empty:
-        wide = _query(empty, AMENITY_WIDE_RADIUS_M, 60)
-        if wide:
-            out2, rows2 = _classify(wide, empty, AMENITY_WIDE_RADIUS_M)
-            out.update(out2)
-            rows += rows2
-
-    for cat in out:
-        out[cat].sort(key=lambda x: x["distance_m"])
-        out[cat] = out[cat][:5]
+    rows += _fill_empties(out)
     if rows:
         try:
             client.table("amenities_cache").insert(rows).execute()
         except Exception:
             pass  # cache is best-effort; still return live results
-    return jsonify({"categories": out, "cached": False})
+    return _respond(out, False)
 
 
 # Mapbox Directions — driving / walking / cycling commute times. 30d cache.

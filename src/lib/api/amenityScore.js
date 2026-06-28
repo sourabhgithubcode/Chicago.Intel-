@@ -80,9 +80,9 @@ export async function getAmenityScore(lat, lng) {
     items,
     weights: GROUP_WEIGHT,
     source: {
-      id: 'google-places',
-      label: 'Google Places + CTA',
-      url: 'https://developers.google.com/maps/documentation/places/web-service',
+      id: 'openstreetmap',
+      label: 'OpenStreetMap + CTA',
+      url: 'https://www.openstreetmap.org/copyright',
     },
     confidence: 7,
   };
