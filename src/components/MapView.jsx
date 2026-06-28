@@ -220,7 +220,15 @@ const BUILDINGS_3D = {
   },
 };
 
-export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
+// Neighborhood name labels, shown only at the city level.
+const LABEL_LAYER = {
+  id: 'poly-label',
+  type: 'symbol',
+  layout: { 'text-field': ['get', 'name'], 'text-size': 11 },
+  paint: { 'text-color': '#1e293b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.3 },
+};
+
+export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea }) {
   const [geoJson, setGeoJson] = useState(null);
   const [styleId, setStyleId] = useState('light');
   const [reveal, setReveal] = useState(1);
@@ -261,6 +269,13 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
         initialViewState={CHICAGO}
         style={{ width: '100%', height: '100%' }}
         mapStyle={mapStyle}
+        interactiveLayerIds={layer === 'city' && geoJson ? ['poly-fill'] : []}
+        cursor={layer === 'city' ? 'pointer' : undefined}
+        onClick={(e) => {
+          if (layer !== 'city' || !onSelectArea) return;
+          const f = e.features?.find((x) => x.layer?.id === 'poly-fill');
+          if (f?.properties?.id != null) onSelectArea({ id: f.properties.id, name: f.properties.name });
+        }}
       >
         <FlyController
           layer={layer}
@@ -278,6 +293,7 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid }) {
           <Source id="poly" type="geojson" data={geoJson}>
             <Layer {...fillLayer(reveal)} />
             <Layer {...lineLayer(reveal)} />
+            {layer === 'city' && <Layer {...LABEL_LAYER} />}
           </Source>
         )}
       </Map>

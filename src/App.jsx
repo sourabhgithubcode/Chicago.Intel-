@@ -62,6 +62,12 @@ export default function App() {
     setPin(b?.pin ?? null);
   }, []);
 
+  // Clicking a neighborhood on the city map selects it (left pane → CCA view).
+  const handleSelectArea = useCallback((cca) => {
+    setContext((c) => ({ ...c, cca }));
+    setLayer('cca');
+  }, []);
+
   // On load, offer to use the browser's location. In-Chicago → show that
   // address by default; denied / off-Chicago / unsupported → type-address prompt.
   useEffect(() => {
@@ -168,6 +174,7 @@ export default function App() {
           lng={target?.lng}
           ccaId={context.cca?.id}
           tractGeoid={context.tract?.id}
+          onSelectArea={handleSelectArea}
         />
       </div>
     </div>
