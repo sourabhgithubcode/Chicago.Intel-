@@ -386,7 +386,9 @@ OVERPASS_ENDPOINTS = [
     "https://overpass.kumi.systems/api/interpreter",
 ]
 AMENITY_TTL_SECONDS = 30 * 24 * 60 * 60
-AMENITY_RADIUS_M = 402  # 0.25 mi
+AMENITY_RADIUS_M = 402        # 0.25 mi — primary "walkable" radius
+AMENITY_WIDE_RADIUS_M = 2400  # ~1.5 mi — fallback to find the nearest when a
+                              # category has nothing within the walkable radius
 
 # category → list of OSM (key, value) tag filters; any match counts.
 _OSM_TAGS = {
@@ -517,55 +519,70 @@ def amenities_all():
                 out[cat].sort(key=lambda x: x["distance_m"] if x["distance_m"] is not None else 9999)
             return jsonify({"categories": out, "cached": True})
 
-    # one Overpass query across every category's tags (dedupe identical filters)
-    parts, seen = [], set()
-    for tags in _OSM_TAGS.values():
-        for (k, v) in tags:
-            if (k, v) in seen:
-                continue
-            seen.add((k, v))
-            parts.append(f'node["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});')
-            parts.append(f'way["{k}"="{v}"](around:{AMENITY_RADIUS_M},{lat},{lng});')
-    query = f"[out:json][timeout:25];({''.join(parts)});out center 80 tags;"
-    elements = None
-    for ep in OVERPASS_ENDPOINTS:
-        try:
-            r = requests.post(
-                ep, data={"data": query},
-                headers={"User-Agent": "Chicago.Intel/1.0 (neighborhood dashboard)"},
-                timeout=40,
-            )
-            r.raise_for_status()
-            elements = r.json().get("elements", [])
-            break
-        except Exception:
-            continue
-    if elements is None:
-        return jsonify({"error": "overpass lookup failed"}), 502
-
     now = datetime.now(timezone.utc).isoformat()
     expires = (datetime.now(timezone.utc) +
                __import__("datetime").timedelta(seconds=AMENITY_TTL_SECONDS)).isoformat()
-    rows, out = [], {cat: [] for cat in _OSM_TAGS}
-    for el in elements:
-        if el.get("type") == "node":
-            plat, plng = el.get("lat"), el.get("lon")
-        else:
-            c = el.get("center") or {}
-            plat, plng = c.get("lat"), c.get("lon")
-        if plat is None or plng is None:
-            continue
-        dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
-        if dist > AMENITY_RADIUS_M:
-            continue
-        etags = el.get("tags") or {}
-        name, place_id = etags.get("name"), f"osm/{el.get('type')}/{el.get('id')}"
-        for cat, ctags in _OSM_TAGS.items():
-            if any(etags.get(k) == v for (k, v) in ctags):
-                rows.append({"address_key": addr_key, "category": cat, "name": name,
-                             "distance_m": dist, "price_level": None, "place_id": place_id,
-                             "cached_at": now, "expires_at": expires})
-                out[cat].append({"name": name, "distance_m": dist})
+
+    def _query(tag_map, radius, out_n):
+        parts, seen = [], set()
+        for tags in tag_map.values():
+            for (k, v) in tags:
+                if (k, v) in seen:
+                    continue
+                seen.add((k, v))
+                parts.append(f'node["{k}"="{v}"](around:{radius},{lat},{lng});')
+                parts.append(f'way["{k}"="{v}"](around:{radius},{lat},{lng});')
+        q = f"[out:json][timeout:25];({''.join(parts)});out center {out_n} tags;"
+        for ep in OVERPASS_ENDPOINTS:
+            try:
+                rr = requests.post(
+                    ep, data={"data": q},
+                    headers={"User-Agent": "Chicago.Intel/1.0 (neighborhood dashboard)"},
+                    timeout=40,
+                )
+                rr.raise_for_status()
+                return rr.json().get("elements", [])
+            except Exception:
+                continue
+        return None
+
+    def _classify(elements, tag_map, radius):
+        o, rws = {c: [] for c in tag_map}, []
+        for el in elements:
+            if el.get("type") == "node":
+                plat, plng = el.get("lat"), el.get("lon")
+            else:
+                c = el.get("center") or {}
+                plat, plng = c.get("lat"), c.get("lon")
+            if plat is None or plng is None:
+                continue
+            dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+            if dist > radius:
+                continue
+            et = el.get("tags") or {}
+            nm, pid = et.get("name"), f"osm/{el.get('type')}/{el.get('id')}"
+            for cat, ctags in tag_map.items():
+                if any(et.get(k) == v for (k, v) in ctags):
+                    rws.append({"address_key": addr_key, "category": cat, "name": nm,
+                                "distance_m": dist, "price_level": None, "place_id": pid,
+                                "cached_at": now, "expires_at": expires})
+                    o[cat].append({"name": nm, "distance_m": dist})
+        return o, rws
+
+    elements = _query(_OSM_TAGS, AMENITY_RADIUS_M, 80)
+    if elements is None:
+        return jsonify({"error": "overpass lookup failed"}), 502
+    out, rows = _classify(elements, _OSM_TAGS, AMENITY_RADIUS_M)
+
+    # categories with nothing within the walkable radius → widen to the nearest
+    empty = {c: _OSM_TAGS[c] for c in out if not out[c]}
+    if empty:
+        wide = _query(empty, AMENITY_WIDE_RADIUS_M, 60)
+        if wide:
+            out2, rows2 = _classify(wide, empty, AMENITY_WIDE_RADIUS_M)
+            out.update(out2)
+            rows += rows2
+
     for cat in out:
         out[cat].sort(key=lambda x: x["distance_m"])
         out[cat] = out[cat][:5]

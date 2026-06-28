@@ -41,7 +41,7 @@ function Item({ c }) {
             ))}
           </span>
         ) : (
-          <span className="text-t3 text-xs italic">none within 0.25 mi</span>
+          <span className="text-t3 text-xs italic">none nearby</span>
         )}
       </span>
     </div>
