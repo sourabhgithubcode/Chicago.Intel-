@@ -4,6 +4,7 @@
 
 import { Building2, Calendar, Camera, Crosshair, GraduationCap, Hash, Landmark, MapPin, ShieldAlert, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import Map from 'react-map-gl';
 import Tooltip from '../Tooltip.jsx';
 import { getBuildingAt, getLastSyncedAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
@@ -12,8 +13,6 @@ import ConfidenceTag from './ConfidenceTag.jsx';
 // Mapbox token (Google Street View needs the Street View Static API enabled,
 // which isn't, so it returned no image).
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
-const buildingImageUrl = (lat, lng) =>
-  `https://api.mapbox.com/styles/v1/mapbox/satellite-v9/static/${lng},${lat},18.5,0/640x360@2x?access_token=${MAPBOX_TOKEN}`;
 
 const fmtPrice = (n) =>
   n == null ? null : `$${n.toLocaleString('en-US')}`;
@@ -181,19 +180,20 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
                 className="flex items-center gap-1.5 rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-t1 transition-colors hover:bg-slate-200"
               >
                 <Camera size={12} />
-                {showPhoto ? 'Hide building photo' : 'View building (satellite)'}
+                {showPhoto ? 'Hide building view' : 'View building (3D)'}
               </button>
               {showPhoto && (
                 <figure className="mt-2">
-                  <img
-                    src={buildingImageUrl(lat, lng)}
-                    alt="Satellite view of the building"
-                    className="w-full rounded-lg border border-slate-200"
-                    loading="lazy"
-                    onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
-                  />
+                  <div className="h-72 w-full overflow-hidden rounded-lg border border-slate-200">
+                    <Map
+                      mapboxAccessToken={MAPBOX_TOKEN}
+                      initialViewState={{ longitude: lng, latitude: lat, zoom: 17.5, pitch: 62, bearing: 30 }}
+                      mapStyle="mapbox://styles/mapbox/standard"
+                      style={{ width: '100%', height: '100%' }}
+                    />
+                  </div>
                   <figcaption className="text-t3 mt-1 text-[10px]">
-                    Mapbox satellite · aerial view at this location
+                    3D buildings (Mapbox) · drag to pan · right-drag or ⌃-drag to circle · scroll to zoom
                   </figcaption>
                 </figure>
               )}
