@@ -70,7 +70,7 @@ export default function AmenityScore({ lat, lng }) {
         </h3>
         {state.status === 'ok' && (
           <div className="flex items-center gap-2">
-            <Tooltip content="Why this score: each category is scored by walking distance to its nearest place (≤150 m = 10, ≥800 m = 0, linear between), then averaged within groups and weighted — Essentials 50% (grocery, pharmacy, laundry, transit), Lifestyle 30% (cafe, gym, restaurant, park), Errands 20% (bank, ATM, post office, convenience). Distance only — not quality, price, or hours.">
+            <Tooltip content="Walking distance to the nearest place in each category, weighted Essentials 50% / Lifestyle 30% / Errands 20%. Distance only.">
               <span className="text-t0 cursor-help border-b border-dashed border-current text-lg font-semibold">
                 {state.data.score != null ? `${state.data.score} / 10` : '—'}
               </span>
@@ -105,11 +105,7 @@ export default function AmenityScore({ lat, lng }) {
 
           <details className="text-t2">
             <summary className="cursor-pointer text-t1 hover:text-t0">What this does not tell you</summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-              <li>Quality or price — distance only. A nearby store may be expensive or poorly rated.</li>
-              <li>Hours, whether it's open now, or whether it's actually walkable (no street/crossing data).</li>
-              <li>Coverage is Google Places within 0.25 mi (402 m); places missing from Google won't appear.</li>
-            </ul>
+            <p className="mt-2 pl-1 text-xs">Distance only — not quality, price, hours, or whether the walk is actually pedestrian-friendly.</p>
           </details>
         </>
       )}

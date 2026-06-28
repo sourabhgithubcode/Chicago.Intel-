@@ -33,7 +33,7 @@ export default function DisplacementRisk({ lat, lng }) {
       <header className="flex items-center justify-between gap-3">
         <h3 className="display flex items-center gap-2 text-xl text-t0">
           <TrendingDown size={18} className="text-amber" />
-          <Tooltip content="UC Berkeley's UDP typology — classifies each census tract by market pressure and likelihood of resident displacement">
+          <Tooltip content="UC Berkeley's UDP typology — classifies each census tract by market pressure">
             <span className="cursor-help border-b border-dashed border-t0/30">Displacement risk</span>
           </Tooltip>
         </h3>
@@ -63,13 +63,13 @@ export default function DisplacementRisk({ lat, lng }) {
       {state.status === 'ok' && (
         <>
           <div className="flex items-baseline gap-3">
-            <Tooltip content="UDP typology label for this tract: ranges from 'Stable' → 'At Risk' → 'Ongoing Displacement' → 'Advanced Exclusive'">
+            <Tooltip content="UDP typology label for this tract, from 'Stable' to 'Advanced Exclusive'">
               <span className="display cursor-help text-3xl text-t0 border-b border-dashed border-t0/30">
                 {state.data.typology}
               </span>
             </Tooltip>
             <span className="text-t3 text-xs">
-              <Tooltip content="Census Tract GEOID — a unique Census Bureau ID for this ~4,000-resident statistical area">
+              <Tooltip content="Census Tract GEOID — unique Census Bureau ID for this area">
                 <span className="cursor-help border-b border-dashed border-current">tract {state.data.geoid}</span>
               </Tooltip>
             </span>
@@ -79,20 +79,10 @@ export default function DisplacementRisk({ lat, lng }) {
             <summary className="cursor-pointer text-t1 hover:text-t0">
               What this does not tell you
             </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-              <li>
-                Current conditions — typology reflects 2013–2018 ACS + 2012–2017
-                Zillow indices. UDP has not refreshed Chicago since 2018.
-              </li>
-              <li>
-                Block- or building-level risk — this is a tract average
-                (~4,000 residents), not your specific address.
-              </li>
-              <li>
-                Causation — being labeled "at risk" describes market pressure,
-                not whether any individual household will actually be displaced.
-              </li>
-            </ul>
+            <p className="mt-2 pl-1 text-xs">
+              A tract average from 2013–18 data, not current conditions or your
+              specific address, and it doesn't predict any individual household.
+            </p>
           </details>
         </>
       )}

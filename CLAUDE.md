@@ -223,9 +223,11 @@ Never present composite score as a recommendation.
 
 ## Permanent UI Copy (do not change)
 
-> "Chicago.Intel shows you what public data says about any address in
-> Chicago. We tell you how confident we are in each number and what it
-> does not capture. You make the decision. We never tell you where to live."
+Condensed 2026-06-27 at the owner's request (was a 4-sentence paragraph). The
+non-negotiable phrase to keep is "we never tell you where to live."
+
+> "What public data says about any Chicago address — with our confidence and
+> caveats. You decide; we never tell you where to live."
 
 ---
 

@@ -124,13 +124,13 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
               label="owner"
               value={state.data.owner}
               caveat="taxpayer name; not beneficial owner"
-              tooltip="Taxpayer of record from the Assessor. Often an LLC or trust, not the actual individual owner."
+              tooltip="Taxpayer of record — often an LLC or trust, not the individual owner."
             />
             <Row
               icon={Calendar}
               label="year built"
               value={state.data.year_built ?? 'not recorded by Assessor'}
-              tooltip="Construction year from the Cook County Assessor characteristics file. Often blank for condos, vacant land, and some commercial / multi-unit parcels."
+              tooltip="Construction year from the Assessor — often blank for condos and multi-unit parcels."
             />
             <Row
               icon={Landmark}
@@ -162,7 +162,7 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
                   ? `${state.data.violations_5yr} bldg violations · ${state.data.bug_reports} rodent · 5yr`
                   : null
               }
-              tooltip="Chicago 311 Building Violations (weighted) + rodent complaints filed at this address over 5 years, matched by address. Higher = cleaner record. Source: Chicago 311 (7/10)."
+              tooltip="Weighted 311 building violations + rodent complaints at this address over 5 years; higher = cleaner record."
             />
             <Row
               icon={Crosshair}
@@ -202,23 +202,11 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
             <summary className="cursor-pointer text-t1 hover:text-t0">
               What this does not tell you
             </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-              <li>
-                Current tax status or annual bill — Cook County Treasurer
-                does not publish a public API; live lookup is queued.
-              </li>
-              <li>
-                Violations are matched to this address from Chicago 311; about
-                30% of complaints (intersection/format mismatches) can't be
-                matched, so "no violations on record" is not a guarantee. A low
-                score reflects complaint volume, which rises with building size.
-              </li>
-              <li>
-                Beneficial owner — owner field is the taxpayer's mailing
-                name, which often differs from the actual owner via LLCs
-                and trusts.
-              </li>
-            </ul>
+            <p className="mt-2 pl-1 text-xs">
+              About 30% of 311 complaints can't be address-matched, so "none on
+              record" isn't a guarantee; owner is the taxpayer name, not the
+              beneficial owner.
+            </p>
           </details>
         </>
       )}

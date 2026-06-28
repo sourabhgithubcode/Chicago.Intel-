@@ -112,14 +112,10 @@ export default function NearestCTAStop({ lat, lng }) {
             <summary className="cursor-pointer text-t1 hover:text-t0">
               What this does not tell you
             </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-              <li>Service frequency, headways, or hours of operation.</li>
-              <li>
-                Whether the route this stop serves goes where you actually
-                need to go.
-              </li>
-              <li>Reliability or on-time performance.</li>
-            </ul>
+            <p className="mt-2 pl-1 text-xs">
+              Just location — not frequency, hours, reliability, or whether the
+              route goes where you need.
+            </p>
           </details>
         </>
       )}

@@ -111,24 +111,10 @@ export default function TaxBill({ pin }) {
             <summary className="cursor-pointer text-t1 hover:text-t0">
               What this does not tell you
             </summary>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-xs">
-              <li>
-                Whether the owner is on a payment plan — Treasurer shows the
-                current balance, not the schedule behind it.
-              </li>
-              <li>
-                Tax appeal or exemption status — appeals at the Board of
-                Review or Assessor's office aren't reflected here.
-              </li>
-              <li>
-                Refunds, prior-year delinquencies, or scavenger-sale history.
-              </li>
-              <li>
-                This number is scraped from a public site that occasionally
-                goes down — a stale cached read may be served for up to 30
-                days.
-              </li>
-            </ul>
+            <p className="mt-2 pl-1 text-xs">
+              Just the current balance — not payment plans, appeals, exemptions,
+              or prior-year history; cached up to 30 days.
+            </p>
           </details>
         </>
       )}

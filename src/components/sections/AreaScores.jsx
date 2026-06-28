@@ -75,10 +75,10 @@ export default function AreaScores({ level, id }) {
               tooltip={`Median gross rent, ACS 5-year estimate (2019–23) — ${scope.rentCaveat}.`}
               confidence={scope.conf} source={{ label: 'ACS 2019–23', url: 'https://data.census.gov/' }} />
             <Row icon={Shield} label="Safety score" value={score(d.safety_score)}
-              tooltip={`10 minus the per-capita rate of CPD violent (×3) + property crime over 5 years, scaled — ${scope.label.toLowerCase()} level. Per-capita can read harsh in low-residential areas.`}
+              tooltip={`Per-capita CPD violent (×3) + property crime over 5 years, scaled to 10 at ${scope.label.toLowerCase()} level.`}
               confidence={scope.conf} source={{ label: 'CPD 2020–', url: 'https://data.cityofchicago.org/' }} />
             <Row icon={Activity} label="Walk score" value={score(d.walk_score)}
-              tooltip="Transit + park access density. Signal only — excludes amenity density and pedestrian infrastructure."
+              tooltip="Transit + park access density. Signal only."
               confidence={6} source={{ label: 'CTA + Park District' }} />
             {scope.vibe && (
               <Row icon={Sparkles} label="Vibe score" value={score(d.vibe_score)}
@@ -86,10 +86,10 @@ export default function AreaScores({ level, id }) {
                 confidence={6} source={{ label: 'Foursquare' }} />
             )}
             <Row icon={TrendingDown} label="Displacement score" value={score(d.disp_score)}
-              tooltip="Market-pressure index from UC Berkeley UDP typology (2013–18). Higher = greater displacement risk."
+              tooltip="Market-pressure index from UC Berkeley UDP typology; higher = greater risk."
               confidence={6} source={{ label: 'UDP / DePaul IHS' }} />
             <Row icon={Clock} label="Data vintage" value={d.data_vintage}
-              tooltip="The survey period this data covers. ACS 5-year estimates lag 2–3 years." />
+              tooltip="The survey period this data covers." />
           </div>
 
           <details className="text-t2">
