@@ -126,7 +126,12 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
               caveat="taxpayer name; not beneficial owner"
               tooltip="Taxpayer of record from the Assessor. Often an LLC or trust, not the actual individual owner."
             />
-            <Row icon={Calendar} label="year built" value={state.data.year_built} />
+            <Row
+              icon={Calendar}
+              label="year built"
+              value={state.data.year_built ?? 'not recorded by Assessor'}
+              tooltip="Construction year from the Cook County Assessor characteristics file. Often blank for condos, vacant land, and some commercial / multi-unit parcels."
+            />
             <Row
               icon={Landmark}
               label="last sale"
@@ -150,7 +155,7 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
               value={
                 state.data.landlord_score != null
                   ? `${Number(state.data.landlord_score).toFixed(1)} / 10`
-                  : 'no violations on record'
+                  : 'none matched to this address'
               }
               caveat={
                 state.data.landlord_score != null
