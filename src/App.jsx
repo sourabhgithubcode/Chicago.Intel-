@@ -162,8 +162,8 @@ export default function App() {
               {layer === 'tract' && (
                 <>
                   <AreaScores level="tract" id={context.tract?.id} />
-                  <NearestCTAStop lat={target.lat} lng={target.lng} />
-                  <DisplacementRisk lat={target.lat} lng={target.lng} />
+                  <NearestCTAStop lat={target.lat} lng={target.lng} compact />
+                  <DisplacementRisk lat={target.lat} lng={target.lng} compact />
                 </>
               )}
 

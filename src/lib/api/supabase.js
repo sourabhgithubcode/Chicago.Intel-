@@ -7,6 +7,7 @@ import { DatabaseError } from '../errors/index.js';
 import { withRetry, CircuitBreaker } from '../retry/index.js';
 import { ccaById, ccaContaining, ccaGeometry } from './ccaStatic.js';
 import { tractContaining, tractGeometry, displacementContaining } from './tractStatic.js';
+import { tractLabel } from '../formatters/index.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -250,7 +251,7 @@ export async function getTractById(geoid) {
     .select('id,name,rent_median,safety_score,walk_score,disp_score,data_vintage')
     .eq('id', geoid)
     .maybeSingle();
-  if (!error && data) return { ...data, name: data.name || `Tract ${geoid}` };
+  if (!error && data) return { ...data, name: data.name || tractLabel(geoid) };
   return null;
 }
 

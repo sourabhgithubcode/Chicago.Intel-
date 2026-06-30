@@ -22,7 +22,7 @@ function relTime(iso) {
   return `synced ${Math.round(m / 60 / 24)}d ago`;
 }
 
-export default function NearestCTAStop({ lat, lng }) {
+export default function NearestCTAStop({ lat, lng, compact = false }) {
   const [state, setState] = useState({ status: 'loading' });
   const [syncedAt, setSyncedAt] = useState(null);
 
@@ -46,6 +46,26 @@ export default function NearestCTAStop({ lat, lng }) {
       cancelled = true;
     };
   }, [lat, lng]);
+
+  // Compact single-row variant (tract level) — matches the AreaScores row style.
+  if (compact) {
+    const value = state.status === 'ok'
+      ? `${state.data.stop_name} · ${formatDistance(state.data.distance_m)}`
+      : state.status === 'loading' ? '…' : '—';
+    return (
+      <section className="glass-2 px-5 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+            <Train size={11} /> Nearest CTA stop
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-t0 text-sm">{value}</span>
+            <ConfidenceTag score={9} source={{ label: 'CTA GTFS', url: 'https://www.transitchicago.com/developers/gtfs.aspx' }} />
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="glass-2 space-y-3 p-5">

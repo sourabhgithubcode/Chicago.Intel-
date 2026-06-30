@@ -7,8 +7,9 @@ import { useEffect, useState } from 'react';
 import Tooltip from '../Tooltip.jsx';
 import { getDisplacementAt } from '../../lib/api/supabase.js';
 import ConfidenceTag from './ConfidenceTag.jsx';
+import { tractLabel } from '../../lib/formatters/index.js';
 
-export default function DisplacementRisk({ lat, lng }) {
+export default function DisplacementRisk({ lat, lng, compact = false }) {
   const [state, setState] = useState({ status: 'loading' });
 
   useEffect(() => {
@@ -27,6 +28,26 @@ export default function DisplacementRisk({ lat, lng }) {
       cancelled = true;
     };
   }, [lat, lng]);
+
+  // Compact single-row variant (tract level) — matches the AreaScores row style.
+  if (compact) {
+    const value = state.status === 'ok'
+      ? state.data.typology
+      : state.status === 'loading' ? '…' : '—';
+    return (
+      <section className="glass-2 px-5 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
+            <TrendingDown size={11} /> Displacement risk
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-t0 text-sm">{value}</span>
+            <ConfidenceTag score={6} source={{ label: 'UDP Chicago (UC Berkeley)', url: 'https://github.com/urban-displacement/displacement-typologies' }} />
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="glass-2 space-y-3 p-5">
@@ -70,7 +91,7 @@ export default function DisplacementRisk({ lat, lng }) {
             </Tooltip>
             <span className="text-t3 text-xs">
               <Tooltip content="Census Tract GEOID — unique Census Bureau ID for this area">
-                <span className="cursor-help border-b border-dashed border-current">tract {state.data.geoid}</span>
+                <span className="cursor-help border-b border-dashed border-current">{tractLabel(state.data.geoid)}</span>
               </Tooltip>
             </span>
           </div>

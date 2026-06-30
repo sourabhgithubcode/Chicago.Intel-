@@ -1,5 +1,6 @@
 import { Building, Building2, Globe2, Map } from 'lucide-react';
 import Tooltip from './Tooltip.jsx';
+import { tractLabel } from '../lib/formatters/index.js';
 
 const LEVEL_ICONS = {
   city:     Globe2,
@@ -19,7 +20,7 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
   const levels = [
     { id: 'city',     label: 'Chicago' },
     { id: 'cca',      label: ccaName ?? 'Neighborhood' },
-    { id: 'tract',    label: tractId  ?? 'Census Tract' },
+    { id: 'tract',    label: tractId ? tractLabel(tractId) : 'Census Tract' },
     { id: 'building', label: address ? address.split(',')[0] : 'Building' },
   ];
 
