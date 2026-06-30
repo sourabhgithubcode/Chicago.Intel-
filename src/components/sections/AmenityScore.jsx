@@ -130,6 +130,7 @@ export default function AmenityScore({ lat, lng, onAmenities, hoveredId, onHover
 
       {state.status === 'ok' && (
         <>
+          <p className="text-t3 text-xs">Hover or click a place to see its route.</p>
           <div className="space-y-0">
             {GROUPS.map((g) => {
               const items = state.data.items.filter((c) => c.group === g.id);
