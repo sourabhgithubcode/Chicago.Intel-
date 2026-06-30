@@ -36,12 +36,12 @@ export default function DisplacementRisk({ lat, lng, compact = false }) {
       : state.status === 'loading' ? '…' : '—';
     return (
       <section className="glass-2 px-5 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
-            <TrendingDown size={11} /> Displacement risk
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="label-mono text-t3 flex min-w-0 items-center gap-1.5 text-xs">
+            <TrendingDown size={11} className="shrink-0" /> Displacement risk
           </span>
-          <span className="flex items-center gap-2">
-            <span className="text-t0 text-sm">{value}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="text-t0 min-w-0 truncate text-sm" title={typeof value === 'string' ? value : undefined}>{value}</span>
             <ConfidenceTag score={6} source={{ label: 'UDP Chicago (UC Berkeley)', url: 'https://github.com/urban-displacement/displacement-typologies' }} />
           </span>
         </div>
@@ -51,9 +51,9 @@ export default function DisplacementRisk({ lat, lng, compact = false }) {
 
   return (
     <section className="glass-2 space-y-3 p-5">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="display flex items-center gap-2 text-xl text-t0">
-          <TrendingDown size={18} className="text-amber" />
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="display flex min-w-0 items-center gap-2 text-xl text-t0">
+          <TrendingDown size={18} className="shrink-0 text-amber" />
           <Tooltip content="UC Berkeley's UDP typology — classifies each census tract by market pressure">
             <span className="cursor-help border-b border-dashed border-t0/30">Displacement risk</span>
           </Tooltip>
@@ -83,13 +83,13 @@ export default function DisplacementRisk({ lat, lng, compact = false }) {
 
       {state.status === 'ok' && (
         <>
-          <div className="flex items-baseline gap-3">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <Tooltip content="UDP typology label for this tract, from 'Stable' to 'Advanced Exclusive'">
-              <span className="display cursor-help text-3xl text-t0 border-b border-dashed border-t0/30">
+              <span className="display min-w-0 cursor-help break-words text-3xl text-t0 border-b border-dashed border-t0/30">
                 {state.data.typology}
               </span>
             </Tooltip>
-            <span className="text-t3 text-xs">
+            <span className="text-t3 shrink-0 text-xs">
               <Tooltip content="Census Tract GEOID — unique Census Bureau ID for this area">
                 <span className="cursor-help border-b border-dashed border-current">{tractLabel(state.data.geoid)}</span>
               </Tooltip>

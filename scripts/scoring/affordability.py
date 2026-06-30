@@ -66,13 +66,16 @@ def _afford(ht_ratio: float) -> float:
     return round(max(0.0, min(10.0, 10.0 * (HI - ht_ratio) / (HI - LO))), 2)
 
 
-def compute() -> dict:
-    client = get_admin_client()
-    ccas = fetch_all(client, "ccas",
-                     "id,name,rent_median,transit_share,autos_per_hh")
+def _score_grain(client, table: str) -> dict:
+    """Compute H+T affordability for every row of `table` (ccas or tracts) and
+    upsert. Both grains hold the same inputs (rent_median, transit_share,
+    autos_per_hh); ccas.name is NOT NULL so it's carried on the CCA upsert."""
+    named = table == "ccas"
+    select = ("id,name," if named else "id,") + "rent_median,transit_share,autos_per_hh"
+    rows = fetch_all(client, table, select, key=None if named else "id")
 
     payload, skipped = [], 0
-    for c in ccas:
+    for c in rows:
         rent = c.get("rent_median")
         if not rent:
             skipped += 1
@@ -80,20 +83,26 @@ def compute() -> dict:
         housing_mo = float(rent)
         transport_mo = _transport_mo(c.get("transit_share"), c.get("autos_per_hh"))
         ht_ratio = (housing_mo + transport_mo) * 12.0 / REFERENCE_INCOME
-        payload.append({
+        row = {
             "id": c["id"],
-            "name": c["name"],  # ccas.name is NOT NULL
             "housing_cost_mo": round(housing_mo),
             "transport_cost_mo": round(transport_mo),
             "afford_score": _afford(ht_ratio),
-        })
+        }
+        if named:
+            row["name"] = c["name"]
+        payload.append(row)
 
     for i in range(0, len(payload), 400):
-        client.table("ccas").upsert(payload[i:i + 400]).execute()
+        client.table(table).upsert(payload[i:i + 400]).execute()
+    return {"scored": len(payload), "skipped_no_input": skipped}
 
-    return {"ccas_scored": len(payload), "skipped_no_input": skipped}
+
+def compute() -> dict:
+    client = get_admin_client()
+    return {grain: _score_grain(client, grain) for grain in ("ccas", "tracts")}
 
 
 if __name__ == "__main__":
     s = compute()
-    print(f"affordability: ccas_scored={s['ccas_scored']} skipped={s['skipped_no_input']}")
+    print(f"affordability: ccas={s['ccas']} tracts={s['tracts']}")

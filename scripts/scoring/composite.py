@@ -55,37 +55,43 @@ def _raw(c: dict):
     return num / den if den > 0 else None
 
 
-def compute() -> dict:
-    client = get_admin_client()
-    cols = "id,name," + ",".join(WEIGHTS)
-    ccas = fetch_all(client, "ccas", cols)
+def _score_grain(client, table: str) -> dict:
+    """Weighted-blend composite for `table` (ccas or tracts), min-max normalized
+    to 1–10 WITHIN that grain (a CCA ranks among the 77; a tract among the
+    ~1300). ccas.name is NOT NULL → carried on the CCA upsert."""
+    named = table == "ccas"
+    select = ("id,name," if named else "id,") + ",".join(WEIGHTS)
+    rows = fetch_all(client, table, select, key=None if named else "id")
 
-    raws = {c["id"]: _raw(c) for c in ccas}
+    raws = {r["id"]: _raw(r) for r in rows}
     vals = [r for r in raws.values() if r is not None]
     if not vals:
-        return {"ccas_scored": 0, "skipped_no_input": len(ccas)}
+        return {"scored": 0, "skipped_no_input": len(rows)}
     lo, hi = min(vals), max(vals)
     span = (hi - lo) or 1.0  # all-equal guard
 
-    name = {c["id"]: c["name"] for c in ccas}
+    name = {r["id"]: r.get("name") for r in rows}
     payload, skipped = [], 0
-    for cid, raw in raws.items():
+    for rid, raw in raws.items():
         if raw is None:
             skipped += 1
             continue
         score = 1.0 + 9.0 * (raw - lo) / span  # min-max → [1, 10]
-        payload.append({
-            "id": cid,
-            "name": name[cid],  # ccas.name is NOT NULL
-            "composite_score": round(score, 2),
-        })
+        row = {"id": rid, "composite_score": round(score, 2)}
+        if named:
+            row["name"] = name[rid]  # ccas.name is NOT NULL
+        payload.append(row)
 
     for i in range(0, len(payload), 400):
-        client.table("ccas").upsert(payload[i:i + 400]).execute()
+        client.table(table).upsert(payload[i:i + 400]).execute()
+    return {"scored": len(payload), "skipped_no_input": skipped}
 
-    return {"ccas_scored": len(payload), "skipped_no_input": skipped}
+
+def compute() -> dict:
+    client = get_admin_client()
+    return {grain: _score_grain(client, grain) for grain in ("ccas", "tracts")}
 
 
 if __name__ == "__main__":
     s = compute()
-    print(f"composite: ccas_scored={s['ccas_scored']} skipped={s['skipped_no_input']}")
+    print(f"composite: ccas={s['ccas']} tracts={s['tracts']}")

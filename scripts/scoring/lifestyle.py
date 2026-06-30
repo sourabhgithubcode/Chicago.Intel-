@@ -75,55 +75,30 @@ def _anchor(density: float, full: float) -> float:
     return round(max(0.0, min(10.0, density / full * 10.0)), 2)
 
 
-def compute() -> dict:
-    client = get_admin_client()
-    ccas = fetch_all(client, "ccas", "id,name,geometry", {"geometry": "not.is.null"})
-    cca_m = gpd.GeoDataFrame(
-        [{"id": c["id"], "name": c["name"]} for c in ccas],
-        geometry=[shape(c["geometry"]) for c in ccas], crs=4326).to_crs(M_CRS)
-    cca_m["area_km2"] = cca_m.geometry.area / 1e6
-
-    scores: dict[int, dict] = {c["id"]: {} for c in ccas}
-
-    # ---- vibe: POI density ----
+def _osm_layers():
+    """Fetch the 3 OSM datasets ONCE city-wide → projected GeoDataFrames, reused
+    for every grain (so adding tracts costs NO extra Overpass calls). Each layer
+    is None if its query fails, so one failure doesn't kill the others."""
+    vibe_pts = bike_lines = park_polys = path_lines = None
     try:
         el = _overpass(
             f'[out:json][timeout:120];'
             f'node["amenity"~"^(restaurant|cafe|bar|pub|fast_food|nightclub|food_court|biergarten|ice_cream)$"]({CHI_BBOX});'
             f'out;')["elements"]
-        pts = gpd.GeoDataFrame(geometry=_nodes(el), crs=4326).to_crs(M_CRS)
-        j = gpd.sjoin(pts, cca_m[["geometry", "id"]], predicate="within", how="inner")
-        cnt = j.groupby("id").size().to_dict()
-        for r in cca_m.itertuples():
-            if r.area_km2 > 0:
-                scores[r.id]["vibe_score"] = _anchor(cnt.get(r.id, 0) / r.area_km2, VIBE_FULL)
+        vibe_pts = gpd.GeoDataFrame(geometry=_nodes(el), crs=4326).to_crs(M_CRS)
     except Exception as e:  # noqa: BLE001
-        print(f"vibe: SKIPPED ({e})")
+        print(f"vibe osm: SKIPPED ({e})")
     time.sleep(2)
-
-    # ---- bike: cycleway length density ----
     try:
         el = _overpass(
             f'[out:json][timeout:120];'
             f'way["highway"="cycleway"]({CHI_BBOX});'
             f'out geom;')["elements"]
         lines, _ = _ways_geom(el)
-        lg = gpd.GeoDataFrame(geometry=lines, crs=4326).to_crs(M_CRS)
-        clipped = gpd.overlay(
-            gpd.GeoDataFrame(geometry=lg.geometry).assign(g=1),
-            cca_m[["geometry", "id"]], how="identity", keep_geom_type=False) \
-            if not lg.empty else None
-        if clipped is not None:
-            clipped["km"] = clipped.geometry.length / 1000.0
-            kml = clipped.dropna(subset=["id"]).groupby("id")["km"].sum().to_dict()
-            for r in cca_m.itertuples():
-                if r.area_km2 > 0:
-                    scores[r.id]["bike_score"] = _anchor(kml.get(r.id, 0.0) / r.area_km2, BIKE_FULL)
+        bike_lines = gpd.GeoDataFrame(geometry=lines, crs=4326).to_crs(M_CRS) if lines else None
     except Exception as e:  # noqa: BLE001
-        print(f"bike: SKIPPED ({e})")
+        print(f"bike osm: SKIPPED ({e})")
     time.sleep(2)
-
-    # ---- run: park-area coverage + off-street path density ----
     try:
         el = _overpass(
             f'[out:json][timeout:150];'
@@ -131,42 +106,92 @@ def compute() -> dict:
             f' way["highway"~"^(path|footway)$"]({CHI_BBOX}););'
             f'out geom;')["elements"]
         lines, polys = _ways_geom(el)
-        park_g = gpd.GeoDataFrame(geometry=polys, crs=4326).to_crs(M_CRS) if polys else None
-        path_g = gpd.GeoDataFrame(geometry=lines, crs=4326).to_crs(M_CRS) if lines else None
+        park_polys = gpd.GeoDataFrame(geometry=polys, crs=4326).to_crs(M_CRS) if polys else None
+        path_lines = gpd.GeoDataFrame(geometry=lines, crs=4326).to_crs(M_CRS) if lines else None
+    except Exception as e:  # noqa: BLE001
+        print(f"run osm: SKIPPED ({e})")
+    return vibe_pts, bike_lines, park_polys, path_lines
 
-        park_area = {}
-        if park_g is not None and not park_g.empty:
-            ov = gpd.overlay(cca_m[["geometry", "id"]], park_g[["geometry"]],
+
+def _score_polys(poly_m, osm) -> dict:
+    """vibe/bike/run for each polygon in `poly_m` (needs id + area_km2 cols) from
+    the prefetched OSM layers. Same formulas/anchors as before, grain-agnostic."""
+    vibe_pts, bike_lines, park_polys, path_lines = osm
+    scores: dict = {pid: {} for pid in poly_m["id"]}
+
+    if vibe_pts is not None and not vibe_pts.empty:
+        j = gpd.sjoin(vibe_pts, poly_m[["geometry", "id"]], predicate="within", how="inner")
+        cnt = j.groupby("id").size().to_dict()
+        for r in poly_m.itertuples():
+            if r.area_km2 > 0:
+                scores[r.id]["vibe_score"] = _anchor(cnt.get(r.id, 0) / r.area_km2, VIBE_FULL)
+
+    if bike_lines is not None and not bike_lines.empty:
+        clipped = gpd.overlay(gpd.GeoDataFrame(geometry=bike_lines.geometry).assign(g=1),
+                              poly_m[["geometry", "id"]], how="identity", keep_geom_type=False)
+        clipped["km"] = clipped.geometry.length / 1000.0
+        kml = clipped.dropna(subset=["id"]).groupby("id")["km"].sum().to_dict()
+        for r in poly_m.itertuples():
+            if r.area_km2 > 0:
+                scores[r.id]["bike_score"] = _anchor(kml.get(r.id, 0.0) / r.area_km2, BIKE_FULL)
+
+    if park_polys is not None or path_lines is not None:
+        park_area, path_km = {}, {}
+        if park_polys is not None and not park_polys.empty:
+            ov = gpd.overlay(poly_m[["geometry", "id"]], park_polys[["geometry"]],
                              how="intersection", keep_geom_type=False)
             ov["a"] = ov.geometry.area / 1e6
             park_area = ov.groupby("id")["a"].sum().to_dict()
-
-        path_km = {}
-        if path_g is not None and not path_g.empty:
-            ov = gpd.overlay(gpd.GeoDataFrame(geometry=path_g.geometry),
-                             cca_m[["geometry", "id"]], how="identity", keep_geom_type=False)
+        if path_lines is not None and not path_lines.empty:
+            ov = gpd.overlay(gpd.GeoDataFrame(geometry=path_lines.geometry),
+                             poly_m[["geometry", "id"]], how="identity", keep_geom_type=False)
             ov["km"] = ov.geometry.length / 1000.0
             path_km = ov.dropna(subset=["id"]).groupby("id")["km"].sum().to_dict()
-
-        for r in cca_m.itertuples():
+        for r in poly_m.itertuples():
             if r.area_km2 <= 0:
                 continue
-            green = min(park_area.get(r.id, 0.0) / r.area_km2, 1.0)          # 0–1 coverage
-            paths = min(path_km.get(r.id, 0.0) / r.area_km2 / PATH_FULL, 1.0)  # 0–1
+            green = min(park_area.get(r.id, 0.0) / r.area_km2, 1.0)
+            paths = min(path_km.get(r.id, 0.0) / r.area_km2 / PATH_FULL, 1.0)
             scores[r.id]["run_score"] = round(max(0.0, min(10.0, green * 6.0 + paths * 4.0)), 2)
-    except Exception as e:  # noqa: BLE001
-        print(f"run: SKIPPED ({e})")
 
-    name = {c["id"]: c["name"] for c in ccas}
-    payload = [{"id": cid, "name": name[cid], **s} for cid, s in scores.items() if s]
-    for i in range(0, len(payload), 400):
-        client.table("ccas").upsert(payload[i:i + 400]).execute()
+    return scores
 
-    return {"ccas_scored": len(payload),
-            "metrics": {k: sum(1 for s in scores.values() if k in s)
-                        for k in ("vibe_score", "bike_score", "run_score")}}
+
+def _grain_gdf(client, table: str):
+    """Projected polygon GeoDataFrame (id + area_km2) + id→name map for a grain."""
+    named = table == "ccas"
+    rows = fetch_all(client, table, ("id,name,geometry" if named else "id,geometry"),
+                     {"geometry": "not.is.null"}, key=None if named else "id")
+    gdf = gpd.GeoDataFrame([{"id": r["id"]} for r in rows],
+                           geometry=[shape(r["geometry"]) for r in rows], crs=4326).to_crs(M_CRS)
+    gdf["area_km2"] = gdf.geometry.area / 1e6
+    names = {r["id"]: r["name"] for r in rows} if named else {}
+    return gdf, names
+
+
+def compute() -> dict:
+    client = get_admin_client()
+    osm = _osm_layers()
+    out = {}
+    for table in ("ccas", "tracts"):
+        gdf, names = _grain_gdf(client, table)
+        scores = _score_polys(gdf, osm)
+        payload = []
+        for pid, s in scores.items():
+            if not s:
+                continue
+            row = {"id": pid, **s}
+            if table == "ccas":
+                row["name"] = names[pid]  # ccas.name is NOT NULL
+            payload.append(row)
+        for i in range(0, len(payload), 400):
+            client.table(table).upsert(payload[i:i + 400]).execute()
+        out[table] = {"scored": len(payload),
+                      "metrics": {k: sum(1 for s in scores.values() if k in s)
+                                  for k in ("vibe_score", "bike_score", "run_score")}}
+    return out
 
 
 if __name__ == "__main__":
     s = compute()
-    print(f"lifestyle: ccas={s['ccas_scored']} metrics={s['metrics']}")
+    print(f"lifestyle: ccas={s['ccas']} tracts={s['tracts']}")

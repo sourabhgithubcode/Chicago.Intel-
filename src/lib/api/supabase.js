@@ -240,6 +240,58 @@ export async function getCcaScores() {
 }
 
 /**
+ * All ~1300 tracts with their engine scores, for the neighborhood-level granular
+ * choropleth. Paged (PostgREST caps a response at 1000 rows). Memoized.
+ * Caller: MapView.jsx. Returns [] if unavailable (columns/migration 031 absent).
+ */
+let _tractScores;
+export async function getTractScores() {
+  if (_tractScores !== undefined) return _tractScores;
+  if (!supabase) return (_tractScores = []);
+  const cols = 'id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+    + 'disp_score,vibe_score,bike_score,run_score';
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from('tracts').select(cols).range(from, from + 999);
+    if (error) return (_tractScores = rows);          // partial/none → what we have
+    rows.push(...data);
+    if (data.length < 1000) break;                    // last page
+  }
+  return (_tractScores = rows);
+}
+
+/**
+ * Buildings within a tract (migration 032 RPC) as a points FeatureCollection,
+ * for the tract-level building choropleth. Each feature carries the building
+ * metrics (violations_5yr / heat_complaints / bug_reports / year_built).
+ * Caller: MapView.jsx. Returns an empty collection if unavailable.
+ */
+export async function getBuildingsInTract(geoid) {
+  const empty = { type: 'FeatureCollection', features: [] };
+  if (!supabase || geoid == null) return empty;
+  let rows;
+  try {
+    rows = await rpc('buildings_in_tract', { p_geoid: geoid });
+  } catch {
+    return empty;
+  }
+  return {
+    type: 'FeatureCollection',
+    features: (rows || []).map((r) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+      properties: {
+        pin: r.pin,
+        violations_5yr: r.violations_5yr,
+        heat_complaints: r.heat_complaints,
+        bug_reports: r.bug_reports,
+        year_built: r.year_built,
+      },
+    })),
+  };
+}
+
+/**
  * Census-tract scores (the tract's OWN values, not its CCA's). Backed by the
  * tracts table (anon SELECT via migration 026). safety/walk are ~59% filled;
  * rent/displacement ~96%. Caller: AreaScores.jsx (tract level).

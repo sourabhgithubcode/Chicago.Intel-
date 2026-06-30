@@ -54,12 +54,12 @@ export default function NearestCTAStop({ lat, lng, compact = false }) {
       : state.status === 'loading' ? '…' : '—';
     return (
       <section className="glass-2 px-5 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
-            <Train size={11} /> Nearest CTA stop
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <span className="label-mono text-t3 flex min-w-0 items-center gap-1.5 text-xs">
+            <Train size={11} className="shrink-0" /> Nearest CTA stop
           </span>
-          <span className="flex items-center gap-2">
-            <span className="text-t0 text-sm">{value}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="text-t0 min-w-0 truncate text-sm">{value}</span>
             <ConfidenceTag score={9} source={{ label: 'CTA GTFS', url: 'https://www.transitchicago.com/developers/gtfs.aspx' }} />
           </span>
         </div>
@@ -69,12 +69,12 @@ export default function NearestCTAStop({ lat, lng, compact = false }) {
 
   return (
     <section className="glass-2 space-y-3 p-5">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="display flex items-center gap-2 text-xl text-t0">
-          <Train size={18} className="text-cyan" />
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="display flex min-w-0 items-center gap-2 text-xl text-t0">
+          <Train size={18} className="shrink-0 text-cyan" />
           Nearest CTA stop
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
           <ConfidenceTag
             score={9}
@@ -102,11 +102,11 @@ export default function NearestCTAStop({ lat, lng, compact = false }) {
 
       {state.status === 'ok' && (
         <>
-          <div className="flex items-baseline gap-3">
-            <span className="display text-3xl text-t0">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <span className="display min-w-0 max-w-full truncate text-3xl text-t0" title={state.data.stop_name}>
               {state.data.stop_name}
             </span>
-            <span className="text-t2">
+            <span className="text-t2 shrink-0">
               {formatDistance(state.data.distance_m)} away
             </span>
           </div>

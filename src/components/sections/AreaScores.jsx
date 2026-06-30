@@ -22,12 +22,12 @@ function Row({ icon: Icon, label, value, tooltip, confidence, source }) {
     </Tooltip>
   ) : label;
   return (
-    <div className="flex items-center justify-between gap-2 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
-      <span className="label-mono text-t3 flex items-center gap-1.5 text-xs">
-        {Icon && <Icon size={11} />}{labelNode}
+    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-t border-slate-100 py-2 first:border-t-0 first:pt-0">
+      <span className="label-mono text-t3 flex min-w-0 items-center gap-1.5 text-xs">
+        {Icon && <Icon size={11} className="shrink-0" />}{labelNode}
       </span>
-      <span className="flex items-center gap-2">
-        <span className="text-t0">{value}</span>
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="text-t0 min-w-0 truncate">{value}</span>
         {confidence != null && <ConfidenceTag score={confidence} source={source} />}
       </span>
     </div>
@@ -55,12 +55,12 @@ export default function AreaScores({ level, id }) {
   const d = state.data;
   return (
     <section className="glass-2 space-y-3 p-5">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="display flex items-center gap-2 text-xl text-t0">
-          <LayoutGrid size={18} className="text-cyan" />
-          {state.status === 'ok' ? d.name : scope.label}
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="display flex min-w-0 items-center gap-2 text-xl text-t0">
+          <LayoutGrid size={18} className="shrink-0 text-cyan" />
+          <span className="min-w-0 break-words">{state.status === 'ok' ? d.name : scope.label}</span>
         </h3>
-        <span className="label-mono text-t3 text-[10px] uppercase tracking-wide">{scope.label}</span>
+        <span className="label-mono text-t3 shrink-0 text-[10px] uppercase tracking-wide">{scope.label}</span>
       </header>
 
       {state.status === 'loading' && <p className="text-t2">Loading…</p>}

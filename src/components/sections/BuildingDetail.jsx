@@ -72,12 +72,12 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
 
   return (
     <section className="glass-2 space-y-3 p-5">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="display flex items-center gap-2 text-xl text-t0">
-          <Building2 size={18} className="text-cyan" />
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="display flex min-w-0 items-center gap-2 text-xl text-t0">
+          <Building2 size={18} className="shrink-0 text-cyan" />
           Building
         </h3>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="label-mono text-t3 text-xs">{relTime(syncedAt)}</span>
           <ConfidenceTag
             score={9}

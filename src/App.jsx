@@ -83,6 +83,18 @@ export default function App() {
     setLayer('cca');
   }, []);
 
+  // Clicking a tract inside a neighborhood drills to it (exploration too).
+  const handleSelectTract = useCallback((tract) => {
+    setContext((c) => ({ ...c, tract }));
+    setLayer('tract');
+  }, []);
+
+  // Clicking a building point on the tract layer drills to that building.
+  const handleSelectBuilding = useCallback(async ({ lat: blat, lng: blng }) => {
+    const address = (await reverseGeocode(blat, blng).catch(() => null)) || 'Selected building';
+    handleResult({ lat: blat, lng: blng, address });
+  }, [handleResult]);
+
   // Breadcrumb navigation. Returning to the address's own levels (building or
   // tract) restores the address's canonical CCA + tract, undoing any map-click
   // neighborhood exploration so the two never conflict.
@@ -129,7 +141,7 @@ export default function App() {
         <div className="flex flex-col gap-4 p-6">
           <header className="glass-1 space-y-2 p-6 text-center">
             <div className="label-mono text-t2 text-xs">chicago · intel · v2</div>
-            <h1 className="display text-4xl text-t0">Chicago.Intel</h1>
+            <h1 className="display break-words text-4xl text-t0">Chicago.Intel</h1>
             <p className="text-t2 text-sm leading-relaxed">
               What public data says about any Chicago address — with our confidence
               and caveats. You decide; we never tell you where to live.
@@ -210,6 +222,8 @@ export default function App() {
           ccaId={context.cca?.id}
           tractGeoid={context.tract?.id}
           onSelectArea={handleSelectArea}
+          onSelectTract={handleSelectTract}
+          onSelectBuilding={handleSelectBuilding}
         />
       </div>
     </div>

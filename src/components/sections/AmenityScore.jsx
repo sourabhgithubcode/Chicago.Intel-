@@ -63,13 +63,13 @@ export default function AmenityScore({ lat, lng }) {
 
   return (
     <section className="glass-2 space-y-3 p-5">
-      <header className="flex items-center justify-between gap-3">
-        <h3 className="display flex items-center gap-2 text-xl text-t0">
-          <Sparkles size={18} className="text-cyan" />
+      <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <h3 className="display flex min-w-0 items-center gap-2 text-xl text-t0">
+          <Sparkles size={18} className="shrink-0 text-cyan" />
           Amenities
         </h3>
         {state.status === 'ok' && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Tooltip content="Walking distance to the nearest place in each category, weighted Essentials 50% / Lifestyle 30% / Errands 20%. Distance only.">
               <span className="text-t0 cursor-help border-b border-dashed border-current text-lg font-semibold">
                 {state.data.score != null ? `${state.data.score} / 10` : '—'}

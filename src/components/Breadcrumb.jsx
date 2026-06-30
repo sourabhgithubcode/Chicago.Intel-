@@ -38,22 +38,24 @@ export default function Breadcrumb({ layer, ccaName, tractId, address, onLayerCh
           <Tooltip content={tip}>
             <span className="cursor-help border-b border-dashed border-current">{lvl.label}</span>
           </Tooltip>
-        ) : lvl.label;
+        ) : (
+          <span className="min-w-0 max-w-[12rem] truncate" title={lvl.label}>{lvl.label}</span>
+        );
 
         return (
-          <span key={lvl.id} className="flex items-center">
+          <span key={lvl.id} className="flex min-w-0 items-center">
             {i > 0 && SEP}
             {isClickable ? (
               <button
                 onClick={() => onLayerChange(lvl.id)}
-                className="flex items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-t2 transition-colors hover:bg-slate-100 hover:text-t0 active:bg-slate-200"
+                className="flex min-w-0 max-w-full items-center gap-1 rounded-md px-2.5 py-1 text-sm font-medium text-t2 transition-colors hover:bg-slate-100 hover:text-t0 active:bg-slate-200"
               >
-                <Icon size={13} />
+                <Icon size={13} className="shrink-0" />
                 {labelNode}
               </button>
             ) : (
-              <span className="flex items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-sm font-semibold text-white">
-                <Icon size={13} />
+              <span className="flex min-w-0 max-w-full items-center gap-1 rounded-md bg-slate-900 px-2.5 py-1 text-sm font-semibold text-white">
+                <Icon size={13} className="shrink-0" />
                 {labelNode}
               </span>
             )}

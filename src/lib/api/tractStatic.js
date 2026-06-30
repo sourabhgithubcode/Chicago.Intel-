@@ -25,6 +25,25 @@ export async function tractContaining(lat, lng) {
   return f ? { id: f.properties.id, name: null, cca_id: f.properties.cca_id } : null;
 }
 
+/** Every Chicago tract as a FeatureCollection, for the city-level "Tract"
+ *  granularity choropleth. */
+export async function allTractFeatures() {
+  return load();
+}
+
+/** FeatureCollection of every tract whose cca_id matches `ccaId` (the tracts
+ *  inside one Community Area), for the neighborhood-level granular choropleth.
+ *  ~785/801 tracts carry cca_id; edge tracts (O'Hare etc.) without it are
+ *  omitted. Returns an empty FeatureCollection if none match. */
+export async function tractsInCca(ccaId) {
+  const fc = await load();
+  const id = Number(ccaId);
+  return {
+    type: 'FeatureCollection',
+    features: fc.features.filter((feat) => feat.properties.cca_id === id),
+  };
+}
+
 /** GeoJSON geometry for one tract geoid, or null. */
 export async function tractGeometry(geoid) {
   const fc = await load();
