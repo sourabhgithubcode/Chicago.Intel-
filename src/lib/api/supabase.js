@@ -209,13 +209,33 @@ export async function getCcaById(ccaId) {
   if (supabase) {
     const { data, error } = await supabase
       .from('ccas')
-      .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage')
+      .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage,'
+        + 'composite_score,afford_score,vuln_score,bike_score,run_score,'
+        + 'housing_cost_mo,transport_cost_mo,income_median,poverty_rate,vacancy_rate,'
+        + 'renter_occupied_pct,transit_share,autos_per_hh')
       .eq('id', ccaId)
       .maybeSingle();
     if (!error && data) return data;
     // error or 0 rows (anon RLS, migration 026 unapplied) → static bundle below
   }
   return ccaById(ccaId);
+}
+
+/**
+ * All 77 CCAs with their engine scores, for the map "color by" choropleth.
+ * Anon SELECT via migration 026. Memoized for the session.
+ * Caller: MapView.jsx (city level). Returns [] if unavailable (map stays flat).
+ */
+let _ccaScores;
+export async function getCcaScores() {
+  if (_ccaScores !== undefined) return _ccaScores;
+  if (!supabase) return (_ccaScores = []);
+  const { data, error } = await supabase
+    .from('ccas')
+    .select('id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+      + 'disp_score,vibe_score,bike_score,run_score');
+  _ccaScores = !error && data ? data : [];
+  return _ccaScores;
 }
 
 /**
@@ -245,7 +265,7 @@ export async function getCityScores() {
   if (!supabase) return (_cityScores = null);
   const { data } = await supabase
     .from('ccas')
-    .select('rent_median,safety_score,walk_score,disp_score');
+    .select('rent_median,safety_score,walk_score,disp_score,afford_score,vuln_score,composite_score');
   if (!data?.length) return (_cityScores = null);
   const median = (xs) => {
     const s = xs.filter((x) => x != null).sort((a, b) => a - b);
@@ -261,6 +281,9 @@ export async function getCityScores() {
     safety_score: mean('safety_score'),
     walk_score: mean('walk_score'),
     disp_score: mean('disp_score'),
+    afford_score: mean('afford_score'),
+    vuln_score: mean('vuln_score'),
+    composite_score: mean('composite_score'),
     data_vintage: '2019–23',
   };
   return _cityScores;

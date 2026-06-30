@@ -10,6 +10,9 @@ Variables (§13.22):
   B25002_002E/_003E  occupied / vacant — drives vacancy_rate
   B25003_001E/_002E/_003E  total / owner-occupied / renter-occupied — drives tenure
   B01003_001E    total population (drives pop-weighting in §5)
+  B17001_001E/_002E  poverty universe / below-poverty — drives poverty_rate
+  B08301_001E/_010E  workers / transit-to-work — drives transit_share
+  B25046_001E    aggregate vehicles available — drives autos_per_hh (÷ occupied units)
 """
 
 import os
@@ -28,6 +31,9 @@ VARS = [
     "B25002_002E", "B25002_003E",          # vacancy
     "B25003_001E", "B25003_002E", "B25003_003E",  # tenure
     "B01003_001E",                          # population
+    "B17001_001E", "B17001_002E",          # poverty (universe / below)
+    "B08301_001E", "B08301_010E",          # commute (workers / transit)
+    "B25046_001E",                          # aggregate vehicles available
 ]
 
 
@@ -84,6 +90,11 @@ def to_silver(raw: Iterable[list]) -> list[dict]:
         renter = _to_int(get("B25003_003E"))
         tenure_total = _to_int(get("B25003_001E"))
 
+        agg_vehicles = _to_int(get("B25046_001E"))
+        autos_per_hh = (round(agg_vehicles / tenure_total, 2)
+                        if agg_vehicles is not None and tenure_total and tenure_total > 0
+                        else None)
+
         silver.append({
             "id": geoid,
             "rent_median":         _to_int(get("B25064_001E")),
@@ -94,6 +105,9 @@ def to_silver(raw: Iterable[list]) -> list[dict]:
             "owner_occupied_pct":  _ratio(owner, tenure_total),
             "renter_occupied_pct": _ratio(renter, tenure_total),
             "population":          _to_int(get("B01003_001E")),
+            "poverty_rate":        _ratio(_to_int(get("B17001_002E")), _to_int(get("B17001_001E"))),
+            "transit_share":       _ratio(_to_int(get("B08301_010E")), _to_int(get("B08301_001E"))),
+            "autos_per_hh":        autos_per_hh,
         })
     return silver
 

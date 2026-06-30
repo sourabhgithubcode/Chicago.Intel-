@@ -2,7 +2,7 @@
 // Citywide — each showing values recalculated for THAT level (tract scores are
 // the tract's own; city is the aggregate across the 77 CCAs). Caller: App.jsx.
 
-import { Activity, Clock, DollarSign, LayoutGrid, Shield, Sparkles, TrendingDown } from 'lucide-react';
+import { Activity, Bike, Bus, Clock, DollarSign, Footprints, Gauge, LayoutGrid, Shield, Sparkles, TrendingDown, Users, Wallet } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import Tooltip from '../Tooltip.jsx';
 import { getCcaById, getCityScores, getTractById } from '../../lib/api/supabase.js';
@@ -70,10 +70,20 @@ export default function AreaScores({ level, id }) {
       {state.status === 'ok' && (
         <>
           <div>
+            <Row icon={Gauge} label="Overall score" value={score(d.composite_score)}
+              tooltip="Weighted blend: affordability 40%, vulnerability 15%, safety 15%, walk 10%, displacement 10%, vibe 4%, bike 3%, run 3%. Normalized 1–10 across the 77 neighborhoods. A comparison — not a recommendation."
+              confidence={6} source={{ label: 'Weighted blend' }} />
+            <Row icon={Wallet} label="Affordability score" value={score(d.afford_score)}
+              tooltip="Housing + transport cost ÷ $75,134 (Chicago median household income). Lower cost-share = higher score; HUD's 45% H+T benchmark ≈ 5/10. Our estimate — NOT HUD's published Location Affordability Index."
+              confidence={6} source={{ label: 'ACS + our H+T model' }} />
             <Row icon={DollarSign} label="Median rent (ACS)"
               value={d.rent_median ? `$${d.rent_median.toLocaleString()}/mo` : null}
               tooltip={`Median gross rent, ACS 5-year estimate (2019–23) — ${scope.rentCaveat}.`}
               confidence={scope.conf} source={{ label: 'ACS 2019–23', url: 'https://data.census.gov/' }} />
+            <Row icon={Bus} label="Transport cost (modeled)"
+              value={d.transport_cost_mo ? `~$${d.transport_cost_mo.toLocaleString()}/mo` : null}
+              tooltip="Modeled location transport cost: transit commuters × $75 CTA pass + autos/household × $12,297/yr (AAA 2024). An estimate of location-driven cost, not a bill."
+              confidence={6} source={{ label: 'ACS + CTA/AAA' }} />
             <Row icon={Shield} label="Safety score" value={score(d.safety_score)}
               tooltip={`Per-capita CPD violent (×3) + property crime over 5 years, scaled to 10 at ${scope.label.toLowerCase()} level.`}
               confidence={scope.conf} source={{ label: 'CPD 2020–', url: 'https://data.cityofchicago.org/' }} />
@@ -82,12 +92,27 @@ export default function AreaScores({ level, id }) {
               confidence={6} source={{ label: 'CTA + Park District' }} />
             {scope.vibe && (
               <Row icon={Sparkles} label="Vibe score" value={score(d.vibe_score)}
-                tooltip="Dining/coffee/entertainment density. Signal only — North Side bias."
-                confidence={6} source={{ label: 'Foursquare' }} />
+                tooltip="Food/coffee/nightlife POI density (OpenStreetMap). Signal only — anchored to dense corridors, so most areas read low."
+                confidence={6} source={{ label: 'OpenStreetMap' }} />
             )}
             <Row icon={TrendingDown} label="Displacement score" value={score(d.disp_score)}
               tooltip="Market-pressure index from UC Berkeley UDP typology; higher = greater risk."
               confidence={6} source={{ label: 'UDP / DePaul IHS' }} />
+            {scope.vibe && (
+              <Row icon={Users} label="Vulnerability score" value={score(d.vuln_score)}
+                tooltip="Stability from ACS: below-poverty share + housing vacancy + income vs area median. Higher = more stable. Tenure shown as context, not scored."
+                confidence={6} source={{ label: 'ACS 2019–23' }} />
+            )}
+            {scope.vibe && (
+              <Row icon={Bike} label="Bikeability" value={score(d.bike_score)}
+                tooltip="Cycleway (bike-lane) length density (OpenStreetMap). Signal only."
+                confidence={6} source={{ label: 'OpenStreetMap' }} />
+            )}
+            {scope.vibe && (
+              <Row icon={Footprints} label="Runnability" value={score(d.run_score)}
+                tooltip="Park-area coverage + off-street path access (OpenStreetMap). Signal only."
+                confidence={6} source={{ label: 'OpenStreetMap' }} />
+            )}
             <Row icon={Clock} label="Data vintage" value={d.data_vintage}
               tooltip="The survey period this data covers." />
           </div>
@@ -97,7 +122,7 @@ export default function AreaScores({ level, id }) {
             <p className="mt-2 pl-1 text-xs">
               {level === 'city'
                 ? 'A citywide average hides huge block-to-block variation; use the neighborhood and tract views for local detail.'
-                : 'Block-level variation within the area, and current market rents (ACS lags 2–3 years).'}
+                : 'Block-level variation within the area, and current market rents (ACS lags 2–3 years). Affordability divides housing + a modeled transport cost by Chicago’s median income ($75,134) — not your salary — so it reflects a typical earner, not you; it is our estimate, not HUD’s published Location Affordability Index.'}
             </p>
           </details>
         </>

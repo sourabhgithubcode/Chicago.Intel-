@@ -5,10 +5,10 @@
 // building → Mapbox building footprint via queryRenderedFeatures (OSM tiles),
 //            falls back to 75m circle if tile doesn't have footprint data
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Map, { Layer, Source, useMap } from 'react-map-gl';
 import { bbox, circle } from '@turf/turf';
-import { getBuildingFootprint, getCcaGeojson, getTractGeojson } from '../lib/api/supabase.js';
+import { getBuildingFootprint, getCcaGeojson, getCcaScores, getTractGeojson } from '../lib/api/supabase.js';
 import { allCcaFeatures } from '../lib/api/ccaStatic.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -47,6 +47,36 @@ function lineLayer(reveal) {
 function toFeature(geom) {
   if (!geom) return null;
   return { type: 'Feature', geometry: geom, properties: {} };
+}
+
+// "Color by" choropleth (city level). Each metric is a 0–10 score on the CCA.
+const COLOR_METRICS = [
+  { id: 'composite_score', label: 'Overall' },
+  { id: 'afford_score', label: 'Affordability' },
+  { id: 'safety_score', label: 'Safety' },
+  { id: 'walk_score', label: 'Walk' },
+  { id: 'disp_score', label: 'Displacement' },
+  { id: 'vuln_score', label: 'Vulnerability' },
+  { id: 'vibe_score', label: 'Vibe' },
+  { id: 'bike_score', label: 'Bike' },
+  { id: 'run_score', label: 'Run' },
+];
+
+// Red (low) → yellow → green (high); missing score → gray. `coalesce`-to-(-1)
+// keeps null CCAs out of the 0–10 ramp.
+function choroplethColor(metric) {
+  return [
+    'interpolate', ['linear'], ['coalesce', ['get', metric], -1],
+    -1, '#d1d5db',
+    0, '#d73027', 2.5, '#fc8d59', 5, '#fee08b', 7.5, '#91cf60', 10, '#1a9850',
+  ];
+}
+
+function choroplethFillLayer(metric) {
+  return {
+    id: 'poly-fill', type: 'fill',
+    paint: { 'fill-color': choroplethColor(metric), 'fill-opacity': 0.72, 'fill-opacity-transition': TRANS },
+  };
 }
 
 function FlyController({ layer, lat, lng, ccaId, tractGeoid, onGeoJson }) {
@@ -233,6 +263,8 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
   const [styleId, setStyleId] = useState('light');
   const [reveal, setReveal] = useState(1);
   const [threeD, setThreeD] = useState(false);
+  const [colorBy, setColorBy] = useState('composite_score');
+  const [ccaScores, setCcaScores] = useState(null);
 
   // On each new boundary, drop opacity to 0 then ease back to 1 — the paint
   // transition makes the border lines slide/adjust in smoothly.
@@ -242,6 +274,30 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
     const id = setTimeout(() => setReveal(1), 40);
     return () => clearTimeout(id);
   }, [geoJson]);
+
+  // CCA scores for the "color by" choropleth (loaded once).
+  useEffect(() => {
+    let stale = false;
+    getCcaScores().then((rows) => {
+      if (!stale) setCcaScores(new Map(rows.map((r) => [r.id, r])));
+    });
+    return () => { stale = true; };
+  }, []);
+
+  // At city level, merge each CCA's scores into its polygon properties so the
+  // choropleth fill expression can read them via ['get', metric].
+  const sourceData = useMemo(() => {
+    if (!geoJson || layer !== 'city' || !ccaScores) return geoJson;
+    return {
+      ...geoJson,
+      features: geoJson.features.map((f) => ({
+        ...f,
+        properties: { ...f.properties, ...(ccaScores.get(f.properties?.id) ?? {}) },
+      })),
+    };
+  }, [geoJson, layer, ccaScores]);
+
+  const cityChoropleth = layer === 'city' && !!ccaScores && !!sourceData;
 
   // A real Mapbox public token starts with "pk." — without one, mapbox-gl throws
   // and renders a blank panel. Degrade gracefully instead of spamming errors.
@@ -289,14 +345,35 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
 
         {threeD && <Layer {...BUILDINGS_3D} />}
 
-        {geoJson && (
-          <Source id="poly" type="geojson" data={geoJson}>
-            <Layer {...fillLayer(reveal)} />
+        {sourceData && (
+          <Source id="poly" type="geojson" data={sourceData}>
+            <Layer {...(cityChoropleth ? choroplethFillLayer(colorBy) : fillLayer(reveal))} />
             <Layer {...lineLayer(reveal)} />
             {layer === 'city' && <Layer {...LABEL_LAYER} />}
           </Source>
         )}
       </Map>
+
+      {/* "Color by" choropleth control — city level only */}
+      {cityChoropleth && (
+        <div className="absolute left-3 top-3 z-10 rounded-lg bg-white/90 p-2 shadow-md backdrop-blur">
+          <label className="label-mono text-t3 mb-1 block text-[10px] uppercase tracking-wide">Color by</label>
+          <select
+            value={colorBy}
+            onChange={(e) => setColorBy(e.target.value)}
+            className="text-t1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs"
+          >
+            {COLOR_METRICS.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
+          <div className="mt-2 flex items-center gap-1">
+            <span className="text-t3 text-[10px]">low</span>
+            <span className="h-2 w-24 rounded" style={{ background: 'linear-gradient(90deg,#d73027,#fee08b,#1a9850)' }} />
+            <span className="text-t3 text-[10px]">high</span>
+          </div>
+        </div>
+      )}
 
       {/* Base-map style switcher + 3D toggle */}
       <div className="absolute right-3 top-3 z-10 flex gap-1 rounded-lg bg-white/90 p-1 shadow-md backdrop-blur">
