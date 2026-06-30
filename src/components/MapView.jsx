@@ -38,7 +38,10 @@ function lineLayer(reveal) {
   return {
     id: 'poly-line', type: 'line',
     paint: {
-      'line-color': 'rgba(37,99,235,0.9)', 'line-width': 2.5,
+      // Thin but crisp borders — readable even with ~800 tracts on screen.
+      // Solid navy, slightly thicker as you zoom in.
+      'line-color': '#1e3a8a',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.5, 13, 0.8, 16, 1.4],
       'line-opacity': reveal,
       'line-opacity-transition': TRANS, 'line-width-transition': TRANS,
     },

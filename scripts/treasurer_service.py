@@ -552,8 +552,9 @@ def amenities_all():
                 if any(et.get(k) == v for (k, v) in ctags):
                     rws.append({"address_key": addr_key, "category": cat, "name": nm,
                                 "distance_m": dist, "price_level": None, "place_id": pid,
+                                "lat": plat, "lng": plng,
                                 "cached_at": now, "expires_at": expires})
-                    o[cat].append({"name": nm, "distance_m": dist})
+                    o[cat].append({"name": nm, "distance_m": dist, "lat": plat, "lng": plng})
         return o, rws
 
     # For categories with nothing in `out`, widen to ~1.5mi to find the real
@@ -574,6 +575,7 @@ def amenities_all():
                 out[c] = []
                 new_rows.append({"address_key": addr_key, "category": c, "name": None,
                                  "distance_m": None, "price_level": None, "place_id": None,
+                                 "lat": None, "lng": None,
                                  "cached_at": now, "expires_at": expires})
         return new_rows
 
@@ -586,7 +588,7 @@ def amenities_all():
     # ── cached? group it; still widen any empty categories (e.g. rows cached by
     # the old 0.25mi-only version) so every location shows the nearest. ──
     cached = (client.table("amenities_cache")
-              .select("name,distance_m,category,cached_at")
+              .select("name,distance_m,category,lat,lng,cached_at")
               .eq("address_key", addr_key).execute().data or [])
     if cached:
         newest = max(_parse_ts(r["cached_at"]) for r in cached)
@@ -594,7 +596,8 @@ def amenities_all():
             out = {cat: [] for cat in _OSM_TAGS}
             for r in cached:
                 out.setdefault(r["category"], []).append(
-                    {"name": r["name"], "distance_m": r["distance_m"]})
+                    {"name": r["name"], "distance_m": r["distance_m"],
+                     "lat": r.get("lat"), "lng": r.get("lng")})
             if all(out[c] for c in _OSM_TAGS):
                 return _respond(out, True)
             new_rows = _fill_empties(out)

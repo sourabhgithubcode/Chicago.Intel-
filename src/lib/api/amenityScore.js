@@ -43,7 +43,7 @@ export async function getAmenityScore(lat, lng) {
       .filter((p) => p.distance_m != null)
       .sort((x, y) => x.distance_m - y.distance_m)
       .slice(0, 2)
-      .map((p) => ({ name: p.name ?? null, dist: p.distance_m }));
+      .map((p) => ({ name: p.name ?? null, dist: p.distance_m, lat: p.lat ?? null, lng: p.lng ?? null }));
     return { ...c, nearest, dist: nearest[0]?.dist ?? null };
   });
 
