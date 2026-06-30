@@ -62,13 +62,13 @@ const COLOR_METRICS = [
   { id: 'run_score', label: 'Run' },
 ];
 
-// Red (low) → yellow → green (high); missing score → gray. `coalesce`-to-(-1)
-// keeps null CCAs out of the 0–10 ramp.
+// Single-hue blue density: light (low score) → dark navy (high score). Missing
+// score → light gray. `coalesce`-to-(-1) keeps null areas out of the 0–10 ramp.
 function choroplethColor(metric) {
   return [
     'interpolate', ['linear'], ['coalesce', ['get', metric], -1],
-    -1, '#d1d5db',
-    0, '#d73027', 2.5, '#fc8d59', 5, '#fee08b', 7.5, '#91cf60', 10, '#1a9850',
+    -1, '#e5e7eb',
+    0, '#eff6ff', 2.5, '#bfdbfe', 5, '#60a5fa', 7.5, '#2563eb', 10, '#1e3a8a',
   ];
 }
 
@@ -279,7 +279,8 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
   useEffect(() => {
     let stale = false;
     getCcaScores().then((rows) => {
-      if (!stale) setCcaScores(new Map(rows.map((r) => [r.id, r])));
+      // plain object, NOT `new Map` — `Map` is react-map-gl's component here.
+      if (!stale) setCcaScores(Object.fromEntries(rows.map((r) => [r.id, r])));
     });
     return () => { stale = true; };
   }, []);
@@ -287,12 +288,15 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
   // At city level, merge each CCA's scores into its polygon properties so the
   // choropleth fill expression can read them via ['get', metric].
   const sourceData = useMemo(() => {
-    if (!geoJson || layer !== 'city' || !ccaScores) return geoJson;
+    // Only merge at city level once geoJson is the 77-CCA FeatureCollection.
+    // During a level transition geoJson can still be the previous single
+    // Feature (no `.features`), so guard against mapping undefined.
+    if (!geoJson || layer !== 'city' || !ccaScores || !Array.isArray(geoJson.features)) return geoJson;
     return {
       ...geoJson,
       features: geoJson.features.map((f) => ({
         ...f,
-        properties: { ...f.properties, ...(ccaScores.get(f.properties?.id) ?? {}) },
+        properties: { ...f.properties, ...(ccaScores[f.properties?.id] ?? {}) },
       })),
     };
   }, [geoJson, layer, ccaScores]);
@@ -369,7 +373,7 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
           </select>
           <div className="mt-2 flex items-center gap-1">
             <span className="text-t3 text-[10px]">low</span>
-            <span className="h-2 w-24 rounded" style={{ background: 'linear-gradient(90deg,#d73027,#fee08b,#1a9850)' }} />
+            <span className="h-2 w-24 rounded" style={{ background: 'linear-gradient(90deg,#eff6ff,#60a5fa,#1e3a8a)' }} />
             <span className="text-t3 text-[10px]">high</span>
           </div>
         </div>

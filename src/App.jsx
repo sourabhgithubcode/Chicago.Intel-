@@ -14,6 +14,11 @@ import { reverseGeocode } from './lib/api/geocode.js';
 // Chicago bounding box — geolocation outside it falls back to the type-prompt.
 const CHI = { w: -87.940, e: -87.524, s: 41.644, n: 42.023 };
 
+// Cache the resolved location so a refresh within the TTL never re-prompts for
+// geolocation. Cleared automatically after GEO_TTL_MS.
+const GEO_CACHE_KEY = 'ci.lastLocation';
+const GEO_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export default function App() {
   const [target, setTarget] = useState(null);
   const [pin, setPin] = useState(null);
@@ -48,14 +53,23 @@ export default function App() {
 
   const handleResult = useCallback(({ lat, lng, address }) => {
     const zip = /\b(\d{5})\b/.exec(address)?.[1] ?? null;
-    setTarget({ lat, lng, address, zip });
+    setTarget({ lat, lng, address, zip, cca: null, tract: null });
     setPin(null);
     setLayer('building');
-    // Resolve CCA + tract for breadcrumb labels and map polygons
+    // Remember this location so a refresh restores it without re-prompting.
+    try {
+      localStorage.setItem(GEO_CACHE_KEY, JSON.stringify({ lat, lng, address, ts: Date.now() }));
+    } catch { /* private mode / quota — non-fatal */ }
+    // Resolve CCA + tract for breadcrumb labels and map polygons. Keep them on
+    // `target` too, so returning to the address can restore them after the user
+    // explores a different neighborhood on the map.
     Promise.all([
       getCcaAt(lat, lng).catch(() => null),
       getTractAt(lat, lng).catch(() => null),
-    ]).then(([cca, tract]) => setContext({ cca, tract }));
+    ]).then(([cca, tract]) => {
+      setContext({ cca, tract });
+      setTarget((t) => (t ? { ...t, cca, tract } : t));
+    });
   }, []);
 
   const handleBuildingLoaded = useCallback((b) => {
@@ -63,14 +77,35 @@ export default function App() {
   }, []);
 
   // Clicking a neighborhood on the city map selects it (left pane → CCA view).
+  // This is exploration — it does not change the typed/located address.
   const handleSelectArea = useCallback((cca) => {
     setContext((c) => ({ ...c, cca }));
     setLayer('cca');
   }, []);
 
+  // Breadcrumb navigation. Returning to the address's own levels (building or
+  // tract) restores the address's canonical CCA + tract, undoing any map-click
+  // neighborhood exploration so the two never conflict.
+  const handleLayerChange = useCallback((level) => {
+    if (target && (level === 'building' || level === 'tract')) {
+      setContext({ cca: target.cca ?? null, tract: target.tract ?? null });
+    }
+    setLayer(level);
+  }, [target]);
+
   // On load, offer to use the browser's location. In-Chicago → show that
   // address by default; denied / off-Chicago / unsupported → type-address prompt.
   useEffect(() => {
+    // Reuse a recent cached location so a refresh never re-triggers the
+    // geolocation permission popup within the TTL.
+    try {
+      const cached = JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || 'null');
+      if (cached?.lat && cached?.lng && Date.now() - cached.ts < GEO_TTL_MS) {
+        handleResult({ lat: cached.lat, lng: cached.lng, address: cached.address || 'Your location' });
+        return;
+      }
+    } catch { /* corrupt cache — fall through to live geolocation */ }
+
     if (!('geolocation' in navigator)) { setGeoStatus('denied'); return; }
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -116,7 +151,7 @@ export default function App() {
                 ccaName={context.cca?.name}
                 tractId={context.tract?.id}
                 address={target.address}
-                onLayerChange={setLayer}
+                onLayerChange={handleLayerChange}
               />
 
               {/* ── Layer-specific data sections (level-recalculated scores) ── */}
