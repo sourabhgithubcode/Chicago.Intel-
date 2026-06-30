@@ -24,6 +24,8 @@ export default function App() {
   const [pin, setPin] = useState(null);
   const [layer, setLayer] = useState('building');
   const [context, setContext] = useState({ cca: null, tract: null });
+  const [amenityPoints, setAmenityPoints] = useState([]);
+  const [hoveredAmenity, setHoveredAmenity] = useState(null);
   const [geoStatus, setGeoStatus] = useState('locating'); // locating | denied
   const [splitPct, setSplitPct] = useState(50);
   const dragging = useRef(false);
@@ -188,7 +190,13 @@ export default function App() {
                     onLoaded={handleBuildingLoaded}
                   />
                   <TaxBill pin={pin} />
-                  <AmenityScore lat={target.lat} lng={target.lng} />
+                  <AmenityScore
+                    lat={target.lat}
+                    lng={target.lng}
+                    onAmenities={setAmenityPoints}
+                    hoveredId={hoveredAmenity}
+                    onHover={setHoveredAmenity}
+                  />
                   <NearestCTAStop lat={target.lat} lng={target.lng} />
                   <DisplacementRisk lat={target.lat} lng={target.lng} />
                 </>
@@ -224,6 +232,9 @@ export default function App() {
           onSelectArea={handleSelectArea}
           onSelectTract={handleSelectTract}
           onSelectBuilding={handleSelectBuilding}
+          amenityPoints={amenityPoints}
+          hoveredAmenity={hoveredAmenity}
+          onHoverAmenity={setHoveredAmenity}
         />
       </div>
     </div>

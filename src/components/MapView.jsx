@@ -6,7 +6,10 @@
 //            falls back to 75m circle if tile doesn't have footprint data
 
 import { useEffect, useMemo, useState } from 'react';
-import Map, { Layer, Source, useMap } from 'react-map-gl';
+import Map, { Layer, Marker, Source, useMap } from 'react-map-gl';
+import { MapPin } from 'lucide-react';
+import { AMENITY_ICONS } from './sections/AmenityScore.jsx';
+import { amenityLogoUrl } from '../lib/amenityLogos.js';
 import { bbox, circle } from '@turf/turf';
 import { getBuildingFootprint, getBuildingsInTract, getCcaGeojson, getCcaScores, getTractScores, getTractGeojson } from '../lib/api/supabase.js';
 import { allCcaFeatures } from '../lib/api/ccaStatic.js';
@@ -307,7 +310,34 @@ const LABEL_LAYER = {
   paint: { 'text-color': '#1e293b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.3 },
 };
 
-export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea, onSelectTract, onSelectBuilding }) {
+// Building-view amenity pin — category icon (brand logo overlaid when known) +
+// always-visible name label; highlights when its list row is hovered, & v.v.
+function AmenityPin({ pt, hovered, onHover }) {
+  const Icon = AMENITY_ICONS[pt.key] ?? MapPin;
+  const logo = amenityLogoUrl(pt.name);
+  return (
+    <Marker longitude={pt.lng} latitude={pt.lat} anchor="bottom">
+      <div
+        onMouseEnter={() => onHover?.(pt.id)}
+        onMouseLeave={() => onHover?.(null)}
+        className="flex cursor-pointer flex-col items-center"
+      >
+        <div className={`flex max-w-[130px] items-center gap-1 rounded-full border bg-white/95 px-1.5 py-0.5 shadow-sm transition-transform ${
+          hovered ? 'scale-110 border-cyan ring-2 ring-cyan/50' : 'border-slate-300'
+        }`}>
+          <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
+            <Icon size={12} className="text-cyan" />
+            {logo && <img src={logo} alt="" onError={(e) => { e.currentTarget.style.display = 'none'; }} className="absolute inset-0 h-4 w-4 rounded bg-white object-contain" />}
+          </span>
+          <span className="truncate text-[10px] font-medium text-slate-800">{pt.name || pt.label}</span>
+        </div>
+        <span className="-mt-px h-1.5 w-px bg-slate-500" />
+      </div>
+    </Marker>
+  );
+}
+
+export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea, onSelectTract, onSelectBuilding, amenityPoints, hoveredAmenity, onHoverAmenity }) {
   const [geoJson, setGeoJson] = useState(null);
   const [styleId, setStyleId] = useState('light');
   const [reveal, setReveal] = useState(1);
@@ -452,6 +482,10 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
             <Layer {...buildingCircleLayer(buildingColorBy, buildingDomain)} />
           </Source>
         )}
+
+        {layer === 'building' && (amenityPoints || []).map((pt) => (
+          <AmenityPin key={pt.id} pt={pt} hovered={hoveredAmenity === pt.id} onHover={onHoverAmenity} />
+        ))}
       </Map>
 
       {/* Top-left controls: granularity (city + neighborhood) + "Color by"

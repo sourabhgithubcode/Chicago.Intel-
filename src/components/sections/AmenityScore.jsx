@@ -1,7 +1,10 @@
 // Building-level amenity score — nearest grocery, pharmacy, laundry, transit,
 // cafe, gym, restaurant, park, bank, ATM, post office, convenience, hotel
-// within 0.25mi (Google Places + CTA). Score = distance-weighted, Essential
+// within 0.25mi (OpenStreetMap + CTA). Score = distance-weighted, Essential
 // 50% / Lifestyle 30% / Errands 20%. Caller: App.jsx (building layer).
+//
+// Reports its plotted entities (with coords) up via onAmenities so the map can
+// pin them, and is hover-linked to those pins via hoveredId/onHover.
 
 import { Coffee, Dumbbell, Landmark, MapPin, ShoppingCart, Sparkles, Store, TramFront, TreePine, Truck, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -9,7 +12,7 @@ import { getAmenityScore } from '../../lib/api/amenityScore.js';
 import Tooltip from '../Tooltip.jsx';
 import ConfidenceTag from './ConfidenceTag.jsx';
 
-const ICONS = {
+export const AMENITY_ICONS = {
   grocery: ShoppingCart, pharmacy: Landmark, laundry: Truck, transit: TramFront,
   coffee: Coffee, gym: Dumbbell, restaurant: Utensils, park: TreePine,
   bank: Landmark, atm: Landmark, post_office: Truck, convenience: Store, hotel: Store,
@@ -22,8 +25,24 @@ const GROUPS = [
 ];
 const walk = (m) => (m == null ? null : `~${Math.max(1, Math.round(m / 80))} min walk`);
 
-function Item({ c }) {
-  const Icon = ICONS[c.key] ?? MapPin;
+// Stable id per plotted entity — shared between the list row and its map pin.
+const pointId = (key, i) => `${key}:${i}`;
+
+// Flatten categories → the entities we can pin (have coords).
+function buildPoints(items) {
+  const pts = [];
+  for (const c of items || []) {
+    (c.nearest || []).forEach((p, i) => {
+      if (p.lat != null && p.lng != null) {
+        pts.push({ id: pointId(c.key, i), key: c.key, label: c.label, name: p.name, lat: p.lat, lng: p.lng, dist: p.dist });
+      }
+    });
+  }
+  return pts;
+}
+
+function Item({ c, hoveredId, onHover }) {
+  const Icon = AMENITY_ICONS[c.key] ?? MapPin;
   const list = c.nearest || [];
   return (
     <div className="flex flex-nowrap items-start justify-between gap-2 border-t border-slate-100 py-1.5 first:border-t-0">
@@ -33,12 +52,24 @@ function Item({ c }) {
       <span className="text-t0 min-w-0 text-right text-sm">
         {list.length ? (
           <span className="flex flex-col items-end gap-0.5">
-            {list.map((p, i) => (
-              <span key={i} className="max-w-[15rem] truncate" title={p.name || undefined}>
-                {p.name || 'found'}
-                <span className="text-t3 ml-2 text-xs">· {p.dist} m · {walk(p.dist)}</span>
-              </span>
-            ))}
+            {list.map((p, i) => {
+              const id = pointId(c.key, i);
+              const pinnable = p.lat != null && p.lng != null;
+              return (
+                <span
+                  key={i}
+                  onMouseEnter={pinnable ? () => onHover?.(id) : undefined}
+                  onMouseLeave={pinnable ? () => onHover?.(null) : undefined}
+                  className={`max-w-[15rem] truncate rounded px-1 ${pinnable ? 'cursor-pointer' : ''} ${
+                    hoveredId === id ? 'bg-cyan/15' : ''
+                  }`}
+                  title={p.name || undefined}
+                >
+                  {p.name || 'found'}
+                  <span className="text-t3 ml-2 text-xs">· {p.dist} m · {walk(p.dist)}</span>
+                </span>
+              );
+            })}
           </span>
         ) : (
           <span className="text-t3 text-xs italic">none nearby</span>
@@ -48,7 +79,7 @@ function Item({ c }) {
   );
 }
 
-export default function AmenityScore({ lat, lng }) {
+export default function AmenityScore({ lat, lng, onAmenities, hoveredId, onHover }) {
   const [state, setState] = useState({ status: 'loading' });
 
   useEffect(() => {
@@ -60,6 +91,12 @@ export default function AmenityScore({ lat, lng }) {
       .catch((err) => { if (!cancelled) setState({ status: 'error', err }); });
     return () => { cancelled = true; };
   }, [lat, lng]);
+
+  // Report plotted entities (with coords) up to App for the map pins.
+  useEffect(() => {
+    if (!onAmenities) return;
+    onAmenities(state.status === 'ok' ? buildPoints(state.data.items) : []);
+  }, [state, onAmenities]);
 
   return (
     <section className="glass-2 space-y-3 p-5">
@@ -97,7 +134,7 @@ export default function AmenityScore({ lat, lng }) {
               return (
                 <div key={g.id} className="pt-1">
                   <p className="label-mono text-t3 pb-1 pt-2 text-[10px] uppercase tracking-wide">{g.title}</p>
-                  {items.map((c) => <Item key={c.key} c={c} />)}
+                  {items.map((c) => <Item key={c.key} c={c} hoveredId={hoveredId} onHover={onHover} />)}
                 </div>
               );
             })}
