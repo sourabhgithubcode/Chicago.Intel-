@@ -275,6 +275,28 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, granularity, onGeoJ
   return null;
 }
 
+// Building view flies tight to the footprint (z18), which leaves the amenity
+// pins (up to 0.25mi out) off-screen. Once those pins load, pull the camera
+// back to frame the building together with all its pins so they're visible by
+// default. Keyed on amenityPoints only — does not re-run the footprint fetch.
+function AmenityFitController({ layer, lat, lng, amenityPoints }) {
+  const { current: map } = useMap();
+  useEffect(() => {
+    if (!map || layer !== 'building' || lat == null || lng == null) return;
+    const pts = (amenityPoints || []).filter((p) => p.lat != null && p.lng != null);
+    if (!pts.length) return;
+    let minLng = lng, maxLng = lng, minLat = lat, maxLat = lat;
+    for (const p of pts) {
+      if (p.lng < minLng) minLng = p.lng;
+      if (p.lng > maxLng) maxLng = p.lng;
+      if (p.lat < minLat) minLat = p.lat;
+      if (p.lat > maxLat) maxLat = p.lat;
+    }
+    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, duration: 700, maxZoom: 16.5 });
+  }, [map, layer, lat, lng, amenityPoints]);
+  return null;
+}
+
 // Tilts the camera for an angled 3D view (Google-Maps style). Building massing
 // comes from the 3d-buildings fill-extrusion layer rendered below.
 function PitchController({ threeD }) {
@@ -465,6 +487,7 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
           granularity={granularity}
           onGeoJson={setGeoJson}
         />
+        <AmenityFitController layer={layer} lat={lat} lng={lng} amenityPoints={amenityPoints} />
         <PitchController threeD={threeD} />
 
         {threeD && <Layer {...BUILDINGS_3D} />}
