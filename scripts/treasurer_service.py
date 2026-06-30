@@ -21,6 +21,7 @@ Flow (matches the working POC + the old edge function):
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 import sys
@@ -390,6 +391,15 @@ AMENITY_RADIUS_M = 402        # 0.25 mi — primary "walkable" radius
 AMENITY_WIDE_RADIUS_M = 2400  # ~1.5 mi — fallback to find the nearest when a
                               # category has nothing within the walkable radius
 
+
+def _planar_m(lat, lng, plat, plng):
+    """Local planar distance in meters. Longitude is scaled by cos(latitude):
+    at Chicago's ~41.85°N, 1° lng ≈ 0.745° lat, so an unscaled metric overstates
+    east–west distance ~34% and can mis-rank which place is actually nearest."""
+    dlat = (plat - lat) * 111_320
+    dlng = (plng - lng) * 111_320 * math.cos(math.radians(lat))
+    return int((dlat ** 2 + dlng ** 2) ** 0.5)
+
 # category → list of OSM (key, value) tag filters; any match counts.
 _OSM_TAGS = {
     "grocery":     [("shop", "supermarket"), ("shop", "grocery")],
@@ -467,8 +477,7 @@ def amenities():
             plat, plng = c.get("lat"), c.get("lon")
         if plat is None or plng is None:
             continue
-        # crude planar distance — close enough at this scale (≤402 m)
-        dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+        dist = _planar_m(lat, lng, plat, plng)
         if dist > AMENITY_RADIUS_M:
             continue
         rows.append({
@@ -543,7 +552,7 @@ def amenities_all():
                 plat, plng = c.get("lat"), c.get("lon")
             if plat is None or plng is None:
                 continue
-            dist = int(((plat - lat) ** 2 + (plng - lng) ** 2) ** 0.5 * 111_000)
+            dist = _planar_m(lat, lng, plat, plng)
             if dist > radius:
                 continue
             et = el.get("tags") or {}
