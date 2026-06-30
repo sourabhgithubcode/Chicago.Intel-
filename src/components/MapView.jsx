@@ -12,6 +12,7 @@ import { AMENITY_ICONS } from './sections/AmenityScore.jsx';
 import { amenityLogoUrl } from '../lib/amenityLogos.js';
 import { bbox, circle } from '@turf/turf';
 import { getBuildingFootprint, getBuildingsInTract, getCcaGeojson, getCcaScores, getTractScores, getTractGeojson } from '../lib/api/supabase.js';
+import { getRoute } from '../lib/api/directions.js';
 import { allCcaFeatures } from '../lib/api/ccaStatic.js';
 import { allTractFeatures, tractsInCca } from '../lib/api/tractStatic.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -99,9 +100,9 @@ function choroplethFillLayer(metric, domain) {
   };
 }
 
-// Tract-level building points, colored by the selected building metric (same
-// stretched blue ramp), radius grows a touch as you zoom in.
-// [min, max] of `metric` across the visible features → the stretch domain.
+// Tract-level building footprints, filled by the selected building metric (same
+// stretched blue ramp). [min, max] of `metric` across the visible features →
+// the stretch domain.
 function _domain(features, metric) {
   const vals = (features || []).map((f) => f.properties?.[metric]).filter((v) => typeof v === 'number');
   if (!vals.length) return [0, 1];
@@ -109,18 +110,30 @@ function _domain(features, metric) {
   return lo === hi ? [lo, lo + 1] : [lo, hi];
 }
 
-function buildingCircleLayer(metric, domain) {
+function buildingFillLayer(metric, domain) {
   return {
-    id: 'bldg-fill', type: 'circle',
+    id: 'bldg-fill', type: 'fill',
     paint: {
-      'circle-color': choroplethColor(metric, domain),
-      'circle-radius': ['interpolate', ['linear'], ['zoom'], 12, 2.5, 16, 5, 18, 8],
-      'circle-opacity': 0.85,
-      'circle-stroke-width': 0.4,
-      'circle-stroke-color': '#1e293b',
+      'fill-color': choroplethColor(metric, domain),
+      'fill-opacity': 0.85,
+      'fill-outline-color': '#1e293b',
     },
   };
 }
+
+// Street number on each footprint. ~875/tract can't all show at tract zoom, so
+// only from z16 in; Mapbox collision-hides the rest until you zoom further.
+const buildingLabelLayer = {
+  id: 'bldg-label', type: 'symbol', minzoom: 16,
+  layout: {
+    'text-field': ['get', 'house_no'],
+    'text-size': ['interpolate', ['linear'], ['zoom'], 16, 9, 19, 13],
+  },
+  paint: { 'text-color': '#0f172a', 'text-halo-color': '#ffffff', 'text-halo-width': 1.2 },
+};
+
+const fmtDist = (m) => (m == null ? '' : m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
+const fmtMin = (s) => (s == null ? '' : `~${Math.max(1, Math.round(s / 60))} min`);
 
 function FlyController({ layer, lat, lng, ccaId, tractGeoid, granularity, onGeoJson }) {
   const { current: map } = useMap();
@@ -275,10 +288,12 @@ function FlyController({ layer, lat, lng, ccaId, tractGeoid, granularity, onGeoJ
   return null;
 }
 
-// Building view flies tight to the footprint (z18), which leaves the amenity
-// pins (up to 0.25mi out) off-screen. Once those pins load, pull the camera
-// back to frame the building together with all its pins so they're visible by
-// default. Keyed on amenityPoints only — does not re-run the footprint fetch.
+// Building view flies tight to the footprint (z18), leaving the amenity pins
+// (up to 0.25mi out) off-screen. Once they load, pull the camera back toward
+// the pins — but keep the BUILDING reasonably large: never zoom out past FLOOR,
+// and stay centered on the building. Pins that don't fit at that zoom fall
+// off-screen (hidden by default), which is the accepted trade. Keyed on
+// amenityPoints only — does not re-run the footprint fetch.
 function AmenityFitController({ layer, lat, lng, amenityPoints }) {
   const { current: map } = useMap();
   useEffect(() => {
@@ -292,7 +307,11 @@ function AmenityFitController({ layer, lat, lng, amenityPoints }) {
       if (p.lat < minLat) minLat = p.lat;
       if (p.lat > maxLat) maxLat = p.lat;
     }
-    map.fitBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70, duration: 700, maxZoom: 16.5 });
+    // Zoom the bounds would need, clamped so the building never gets tiny.
+    const FLOOR = 16, CEIL = 17;
+    const cam = map.cameraForBounds([[minLng, minLat], [maxLng, maxLat]], { padding: 70 });
+    const zoom = Math.min(CEIL, Math.max(FLOOR, cam?.zoom ?? FLOOR));
+    map.easeTo({ center: [lng, lat], zoom, duration: 700 });
   }, [map, layer, lat, lng, amenityPoints]);
   return null;
 }
@@ -334,7 +353,7 @@ const LABEL_LAYER = {
 
 // Building-view amenity pin — category icon (brand logo overlaid when known) +
 // always-visible name label; highlights when its list row is hovered, & v.v.
-function AmenityPin({ pt, hovered, onHover }) {
+function AmenityPin({ pt, hovered, pinned, onHover, onPin }) {
   const Icon = AMENITY_ICONS[pt.key] ?? MapPin;
   const logo = amenityLogoUrl(pt.name);
   return (
@@ -342,10 +361,11 @@ function AmenityPin({ pt, hovered, onHover }) {
       <div
         onMouseEnter={() => onHover?.(pt.id)}
         onMouseLeave={() => onHover?.(null)}
+        onClick={() => onPin?.(pinned ? null : pt.id)}
         className="flex cursor-pointer flex-col items-center"
       >
         <div className={`flex max-w-[130px] items-center gap-1 rounded-full border bg-white/95 px-1.5 py-0.5 shadow-sm transition-transform ${
-          hovered ? 'scale-110 border-cyan ring-2 ring-cyan/50' : 'border-slate-300'
+          hovered || pinned ? 'scale-110 border-cyan ring-2 ring-cyan/50' : 'border-slate-300'
         }`}>
           <span className="relative flex h-4 w-4 shrink-0 items-center justify-center">
             <Icon size={12} className="text-cyan" />
@@ -359,7 +379,7 @@ function AmenityPin({ pt, hovered, onHover }) {
   );
 }
 
-export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea, onSelectTract, onSelectBuilding, amenityPoints, hoveredAmenity, onHoverAmenity }) {
+export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea, onSelectTract, onSelectBuilding, amenityPoints, hoveredAmenity, onHoverAmenity, pinnedAmenity, onPinAmenity }) {
   const [geoJson, setGeoJson] = useState(null);
   const [styleId, setStyleId] = useState('light');
   const [reveal, setReveal] = useState(1);
@@ -435,6 +455,26 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
   const buildingActive = layer === 'tract' && !!buildings && buildings.features.length > 0;
   const buildingDomain = useMemo(() => _domain(buildings?.features, buildingColorBy), [buildings, buildingColorBy]);
 
+  // Amenity route overlay (building view): trace the real walk/drive route from
+  // the building to the hovered (preview) or pinned (persistent) amenity.
+  const [routeMode, setRouteMode] = useState('walking'); // 'walking' | 'driving'
+  const [route, setRoute] = useState(null); // { geometry, distance_m, duration_s, id }
+  const activeAmenity = useMemo(() => {
+    const id = hoveredAmenity ?? pinnedAmenity;
+    return (amenityPoints || []).find((p) => p.id === id) || null;
+  }, [amenityPoints, hoveredAmenity, pinnedAmenity]);
+  useEffect(() => {
+    if (layer !== 'building' || !activeAmenity || lat == null || lng == null) { setRoute(null); return undefined; }
+    let stale = false;
+    getRoute({ lat, lng }, { lat: activeAmenity.lat, lng: activeAmenity.lng }, routeMode)
+      .then((r) => { if (!stale) setRoute(r ? { ...r, id: activeAmenity.id } : null); });
+    return () => { stale = true; };
+  }, [layer, activeAmenity, lat, lng, routeMode]);
+  const routeMid = useMemo(() => {
+    const c = route?.geometry?.coordinates;
+    return c && c.length ? c[Math.floor(c.length / 2)] : null;
+  }, [route]);
+
   // What a polygon/point click drills into, given what's shown.
   const clickUnit = showingTracts ? 'tract' : layer === 'city' ? 'cca' : null;
 
@@ -473,8 +513,8 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
             if (clickUnit === 'cca' && onSelectArea) onSelectArea({ id: f.properties.id, name: f.properties.name });
             else if (clickUnit === 'tract' && onSelectTract) onSelectTract({ id: f.properties.id });
           } else if (f.layer?.id === 'bldg-fill' && onSelectBuilding) {
-            const [blng, blat] = f.geometry.coordinates;
-            onSelectBuilding({ lng: blng, lat: blat, pin: f.properties?.pin });
+            // Footprint polygons — use the click point, not the polygon coords.
+            onSelectBuilding({ lng: e.lngLat.lng, lat: e.lngLat.lat });
           }
         }}
       >
@@ -502,13 +542,52 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
 
         {buildingActive && (
           <Source id="bldgs" type="geojson" data={buildings}>
-            <Layer {...buildingCircleLayer(buildingColorBy, buildingDomain)} />
+            <Layer {...buildingFillLayer(buildingColorBy, buildingDomain)} />
+            <Layer {...buildingLabelLayer} />
+          </Source>
+        )}
+
+        {layer === 'building' && route?.geometry && (
+          <Source id="amenity-route" type="geojson" data={{ type: 'Feature', properties: {}, geometry: route.geometry }}>
+            <Layer
+              id="amenity-route-line"
+              type="line"
+              layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+              paint={{ 'line-color': '#06b6d4', 'line-width': 4, 'line-opacity': 0.9 }}
+            />
           </Source>
         )}
 
         {layer === 'building' && (amenityPoints || []).map((pt) => (
-          <AmenityPin key={pt.id} pt={pt} hovered={hoveredAmenity === pt.id} onHover={onHoverAmenity} />
+          <AmenityPin
+            key={pt.id}
+            pt={pt}
+            hovered={hoveredAmenity === pt.id}
+            pinned={pinnedAmenity === pt.id}
+            onHover={onHoverAmenity}
+            onPin={onPinAmenity}
+          />
         ))}
+
+        {layer === 'building' && route && routeMid && (
+          <Marker longitude={routeMid[0]} latitude={routeMid[1]} anchor="bottom">
+            <div className="flex items-center gap-1.5 rounded-full border border-cyan/50 bg-white/95 px-2 py-0.5 text-[10px] font-medium shadow">
+              <span className="flex overflow-hidden rounded-full border border-slate-200">
+                {[['walking', 'Walk'], ['driving', 'Drive']].map(([m, lbl]) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setRouteMode(m)}
+                    className={`px-1.5 py-[1px] ${routeMode === m ? 'bg-cyan text-white' : 'bg-white text-slate-500 hover:text-slate-800'}`}
+                  >
+                    {lbl}
+                  </button>
+                ))}
+              </span>
+              <span className="whitespace-nowrap text-slate-800">{fmtDist(route.distance_m)} · {fmtMin(route.duration_s)}</span>
+            </div>
+          </Marker>
+        )}
       </Map>
 
       {/* Top-left controls: granularity (city + neighborhood) + "Color by"

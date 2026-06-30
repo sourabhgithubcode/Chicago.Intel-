@@ -26,6 +26,7 @@ export default function App() {
   const [context, setContext] = useState({ cca: null, tract: null });
   const [amenityPoints, setAmenityPoints] = useState([]);
   const [hoveredAmenity, setHoveredAmenity] = useState(null);
+  const [pinnedAmenity, setPinnedAmenity] = useState(null);
   const [geoStatus, setGeoStatus] = useState('locating'); // locating | denied
   const [splitPct, setSplitPct] = useState(50);
   const dragging = useRef(false);
@@ -57,6 +58,7 @@ export default function App() {
     const zip = /\b(\d{5})\b/.exec(address)?.[1] ?? null;
     setTarget({ lat, lng, address, zip, cca: null, tract: null });
     setPin(null);
+    setPinnedAmenity(null);
     setLayer('building');
     // Remember this location so a refresh restores it without re-prompting.
     try {
@@ -196,6 +198,8 @@ export default function App() {
                     onAmenities={setAmenityPoints}
                     hoveredId={hoveredAmenity}
                     onHover={setHoveredAmenity}
+                    pinnedId={pinnedAmenity}
+                    onPin={setPinnedAmenity}
                   />
                   <NearestCTAStop lat={target.lat} lng={target.lng} />
                   <DisplacementRisk lat={target.lat} lng={target.lng} />
@@ -235,6 +239,8 @@ export default function App() {
           amenityPoints={amenityPoints}
           hoveredAmenity={hoveredAmenity}
           onHoverAmenity={setHoveredAmenity}
+          pinnedAmenity={pinnedAmenity}
+          onPinAmenity={setPinnedAmenity}
         />
       </div>
     </div>

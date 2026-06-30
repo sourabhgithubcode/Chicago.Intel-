@@ -41,7 +41,7 @@ function buildPoints(items) {
   return pts;
 }
 
-function Item({ c, hoveredId, onHover }) {
+function Item({ c, hoveredId, onHover, pinnedId, onPin }) {
   const Icon = AMENITY_ICONS[c.key] ?? MapPin;
   const list = c.nearest || [];
   return (
@@ -55,16 +55,19 @@ function Item({ c, hoveredId, onHover }) {
             {list.map((p, i) => {
               const id = pointId(c.key, i);
               const pinnable = p.lat != null && p.lng != null;
+              const pinned = pinnedId === id;
               return (
                 <span
                   key={i}
                   onMouseEnter={pinnable ? () => onHover?.(id) : undefined}
                   onMouseLeave={pinnable ? () => onHover?.(null) : undefined}
+                  onClick={pinnable ? () => onPin?.(pinned ? null : id) : undefined}
                   className={`max-w-[15rem] truncate rounded px-1 ${pinnable ? 'cursor-pointer' : ''} ${
-                    hoveredId === id ? 'bg-cyan/15' : ''
+                    pinned ? 'bg-cyan/25 ring-1 ring-cyan/50' : hoveredId === id ? 'bg-cyan/15' : ''
                   }`}
-                  title={p.name || undefined}
+                  title={pinnable ? 'Click to route from the building' : (p.name || undefined)}
                 >
+                  {pinned && <span className="text-cyan mr-0.5">→</span>}
                   {p.name || 'found'}
                   <span className="text-t3 ml-2 text-xs">· {p.dist} m · {walk(p.dist)}</span>
                 </span>
@@ -79,7 +82,7 @@ function Item({ c, hoveredId, onHover }) {
   );
 }
 
-export default function AmenityScore({ lat, lng, onAmenities, hoveredId, onHover }) {
+export default function AmenityScore({ lat, lng, onAmenities, hoveredId, onHover, pinnedId, onPin }) {
   const [state, setState] = useState({ status: 'loading' });
 
   useEffect(() => {
@@ -134,7 +137,7 @@ export default function AmenityScore({ lat, lng, onAmenities, hoveredId, onHover
               return (
                 <div key={g.id} className="pt-1">
                   <p className="label-mono text-t3 pb-1 pt-2 text-[10px] uppercase tracking-wide">{g.title}</p>
-                  {items.map((c) => <Item key={c.key} c={c} hoveredId={hoveredId} onHover={onHover} />)}
+                  {items.map((c) => <Item key={c.key} c={c} hoveredId={hoveredId} onHover={onHover} pinnedId={pinnedId} onPin={onPin} />)}
                 </div>
               );
             })}

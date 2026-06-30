@@ -261,17 +261,19 @@ export async function getTractScores() {
 }
 
 /**
- * Buildings within a tract (migration 032 RPC) as a points FeatureCollection,
- * for the tract-level building choropleth. Each feature carries the building
- * metrics (violations_5yr / heat_complaints / bug_reports / year_built).
- * Caller: MapView.jsx. Returns an empty collection if unavailable.
+ * Building footprints within a tract (migration 034 RPC) as a polygon
+ * FeatureCollection, for the tract-level building choropleth. Each feature is a
+ * real footprint MultiPolygon carrying the building metrics (violations_5yr /
+ * heat_complaints / bug_reports / year_built), aggregated across the PINs that
+ * fall inside it. Caller: MapView.jsx. Returns an empty collection if
+ * unavailable.
  */
 export async function getBuildingsInTract(geoid) {
   const empty = { type: 'FeatureCollection', features: [] };
   if (!supabase || geoid == null) return empty;
   let rows;
   try {
-    rows = await rpc('buildings_in_tract', { p_geoid: geoid });
+    rows = await rpc('building_footprints_in_tract', { p_geoid: geoid });
   } catch {
     return empty;
   }
@@ -279,9 +281,10 @@ export async function getBuildingsInTract(geoid) {
     type: 'FeatureCollection',
     features: (rows || []).map((r) => ({
       type: 'Feature',
-      geometry: { type: 'Point', coordinates: [r.lng, r.lat] },
+      geometry: r.geom,
       properties: {
-        pin: r.pin,
+        bldg_id: r.bldg_id,
+        house_no: r.address ? (r.address.match(/^\s*(\d+)/)?.[1] ?? '') : '',
         violations_5yr: r.violations_5yr,
         heat_complaints: r.heat_complaints,
         bug_reports: r.bug_reports,
