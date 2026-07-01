@@ -379,6 +379,22 @@ function AmenityPin({ pt, hovered, pinned, onHover, onPin }) {
   );
 }
 
+// Pulsing "you selected this" ring at the searched address, shown when zoomed
+// out (city/neighborhood/tract) so the exact point stays locatable without
+// touching each level's blue-gradient fill. Amber contrasts the blue choropleth;
+// pointer-events off so it never blocks the drill-down map clicks.
+function AddressMarker({ lat, lng }) {
+  if (lat == null || lng == null) return null;
+  return (
+    <Marker longitude={lng} latitude={lat} anchor="center" style={{ pointerEvents: 'none' }}>
+      <div className="relative flex h-3.5 w-3.5 items-center justify-center">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full" style={{ backgroundColor: '#f59e0b', opacity: 0.55 }} />
+        <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#f59e0b' }} />
+      </div>
+    </Marker>
+  );
+}
+
 export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectArea, onSelectTract, onSelectBuilding, amenityPoints, hoveredAmenity, onHoverAmenity, pinnedAmenity, onPinAmenity }) {
   const [geoJson, setGeoJson] = useState(null);
   const [styleId, setStyleId] = useState('light');
@@ -588,6 +604,8 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
             </div>
           </Marker>
         )}
+
+        {layer !== 'building' && <AddressMarker lat={lat} lng={lng} />}
       </Map>
 
       {/* Top-left controls: granularity (city + neighborhood) + "Color by"
