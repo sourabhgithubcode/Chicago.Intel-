@@ -8,6 +8,11 @@ import { withRetry, CircuitBreaker } from '../retry/index.js';
 import { ccaById, ccaContaining, ccaGeometry } from './ccaStatic.js';
 import { tractContaining, tractGeometry, displacementContaining } from './tractStatic.js';
 import { tractLabel } from '../formatters/index.js';
+import { cachedJSON } from './cache.js';
+
+// Score datasets change quarterly — a 3-day cross-session cache is safe and
+// makes repeat map loads instant.
+const SCORES_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -228,12 +233,14 @@ export async function getCcaById(ccaId) {
 let _ccaScores;
 export async function getCcaScores() {
   if (_ccaScores !== undefined) return _ccaScores;
-  if (!supabase) return (_ccaScores = []);
-  const { data, error } = await supabase
-    .from('ccas')
-    .select('id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
-      + 'disp_score,vibe_score,bike_score,run_score');
-  _ccaScores = !error && data ? data : [];
+  _ccaScores = await cachedJSON('ci.ccaScores', SCORES_TTL_MS, async () => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('ccas')
+      .select('id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+        + 'disp_score,vibe_score,bike_score,run_score');
+    return !error && data ? data : [];
+  });
   return _ccaScores;
 }
 
@@ -245,17 +252,20 @@ export async function getCcaScores() {
 let _tractScores;
 export async function getTractScores() {
   if (_tractScores !== undefined) return _tractScores;
-  if (!supabase) return (_tractScores = []);
-  const cols = 'id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
-    + 'disp_score,vibe_score,bike_score,run_score';
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('tracts').select(cols).range(from, from + 999);
-    if (error) return (_tractScores = rows);          // partial/none → what we have
-    rows.push(...data);
-    if (data.length < 1000) break;                    // last page
-  }
-  return (_tractScores = rows);
+  _tractScores = await cachedJSON('ci.tractScores', SCORES_TTL_MS, async () => {
+    if (!supabase) return [];
+    const cols = 'id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+      + 'disp_score,vibe_score,bike_score,run_score';
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('tracts').select(cols).range(from, from + 999);
+      if (error) return rows;                          // partial/none → what we have (not cached if empty)
+      rows.push(...data);
+      if (data.length < 1000) break;                   // last page
+    }
+    return rows;
+  });
+  return _tractScores;
 }
 
 /**
