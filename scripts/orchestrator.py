@@ -30,7 +30,7 @@ import structlog
 from utils.logging_setup import setup_logging
 from utils.supabase_admin import get_admin_client
 from utils.backup import backup_tables, restore_tables
-from utils.health_check import run_health_checks
+from utils.health_check import run_health_checks, reconcile_fill_rates
 
 from fetchers import fetch_acs, fetch_cpd, fetch_assessor, fetch_311
 from fetchers import fetch_cta, fetch_parks, fetch_streets, fetch_treasurer
@@ -147,7 +147,7 @@ def main():
     # 4. Load — delegated to loaders
     try:
         from loaders import load_all
-        load_all(client, fetched)
+        upserted = load_all(client, fetched)
         log.info("load_complete")
     except Exception as e:
         log.error("load_failed", error=str(e))
@@ -155,9 +155,41 @@ def main():
             restore_tables(client, run_id)
         sys.exit(1)
 
+    # 4b. Record a pipeline_runs row per loaded source so the frontend freshness
+    # UI (getLastSyncedAt) updates and assert_row_count_drift gets a baseline.
+    # Same shape as the bronze-only block; failure here is a warning, not fatal.
+    completed_at = datetime.utcnow().isoformat() + "Z"
+    started_at = datetime.strptime(run_id, "%Y%m%dT%H%M%S").isoformat() + "Z"
+    for source, n in upserted.items():
+        try:
+            client.table("pipeline_runs").insert([{
+                "run_id": f"{run_id}_{source}",
+                "source": source,
+                "status": "success",
+                "mode": "delta",  # pipeline_runs_mode_check allows seed/delta/on_view/bronze_only
+                "rows_in": len(fetched.get(source) or []),
+                "rows_upserted": n,
+                "started_at": started_at,
+                "completed_at": completed_at,
+                "sources": [source],
+                "row_counts": {source: n},
+            }]).execute()
+        except Exception as e:
+            log.warning("pipeline_runs_write_failed", source=source, error=str(e))
+
     # 5. Health check
     if not run_health_checks(client):
         log.error("health_check_failed")
+        if not args.skip_backup:
+            restore_tables(client, run_id)
+        sys.exit(1)
+
+    # 5b. Fill-rate reconciliation — only checks the watched score/displayed
+    # tables a loaded source wrote, so the daily cpd/311 path is a no-op here.
+    # A *_fail breach (a UI column collapsed to ~all null/zero) rolls back;
+    # WARN-level fill regressions log loudly without blocking.
+    if not reconcile_fill_rates(client, list(upserted)):
+        log.error("fill_rate_reconciliation_failed")
         if not args.skip_backup:
             restore_tables(client, run_id)
         sys.exit(1)

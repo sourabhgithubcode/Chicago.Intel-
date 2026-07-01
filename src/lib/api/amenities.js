@@ -6,7 +6,14 @@
 // caching softens the cost; categories are limited to the 8 we currently
 // surface (grocery, gym, pharmacy, coffee, restaurant, park, bank, laundry).
 
+import { cachedJSON } from './cache.js';
+
 const API = import.meta.env.VITE_TREASURER_API_URL;
+
+// Server caches per address 30d; a 7d client cache is safe and, on a repeat
+// view, skips the network entirely — crucial when the free-tier treasurer is
+// asleep (~30s cold start).
+const AMENITIES_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const SOURCE = {
   id: 'google-places',
@@ -19,11 +26,14 @@ const SOURCE = {
 // Returns { category: [{ name, distance_m }] } or null. Caller: amenityScore.js.
 export async function getAmenitiesAll(lat, lng) {
   if (lat == null || lng == null || !API) return null;
-  const res = await fetch(`${API}/amenities_all?lat=${lat}&lng=${lng}`);
-  if (!res.ok) throw new Error(`Amenities HTTP ${res.status}`);
-  const data = await res.json();
-  if (data.error) return null;
-  return data.categories ?? null;
+  const key = `ci.am:${lat.toFixed(4)},${lng.toFixed(4)}`;
+  return cachedJSON(key, AMENITIES_TTL_MS, async () => {
+    const res = await fetch(`${API}/amenities_all?lat=${lat}&lng=${lng}`);
+    if (!res.ok) throw new Error(`Amenities HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) return null;
+    return data.categories ?? null;
+  }, (d) => d && Object.keys(d).length > 0);
 }
 
 export async function getAmenities(lat, lng, category) {

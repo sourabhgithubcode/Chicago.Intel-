@@ -11,6 +11,8 @@ Surface (one method per current caller — no speculative additions):
     client.table(t).insert(rows).execute()
     client.table(t).select(cols, count=...).limit(n).execute()
     client.table(t).select(cols).eq(col, v).eq(...).order(col, desc=True).limit(n).execute()
+    client.table(t).select(cols, count=...).is_(col, "null").limit(n).execute()
+    client.table(t).select(cols, count=...).not_is_(col, "null").limit(n).execute()
     client.table(t).delete().neq(col, v).execute()
     client.rpc(fn, args).execute()
 
@@ -83,6 +85,16 @@ class _Query:
     # filters / modifiers
     def eq(self, column: str, value: Any) -> "_Query":
         self._params.append((column, f"eq.{value}"))
+        return self
+
+    def is_(self, column: str, value: Any) -> "_Query":
+        # PostgREST `is.` operator — used for null counts (col=is.null).
+        self._params.append((column, f"is.{value}"))
+        return self
+
+    def not_is_(self, column: str, value: Any) -> "_Query":
+        # PostgREST `not.is.` — e.g. geometry=not.is.null (renderable rows only).
+        self._params.append((column, f"not.is.{value}"))
         return self
 
     def neq(self, column: str, value: Any) -> "_Query":

@@ -8,6 +8,11 @@ import { withRetry, CircuitBreaker } from '../retry/index.js';
 import { ccaById, ccaContaining, ccaGeometry } from './ccaStatic.js';
 import { tractContaining, tractGeometry, displacementContaining } from './tractStatic.js';
 import { tractLabel } from '../formatters/index.js';
+import { cachedJSON } from './cache.js';
+
+// Score datasets change quarterly — a 3-day cross-session cache is safe and
+// makes repeat map loads instant.
+const SCORES_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -51,9 +56,9 @@ export async function rpc(name, params = {}) {
 /**
  * Building parcel data nearest a coordinate (within 100m).
  * Backed by RPC `find_building_at(lat, lng)` (003/005). Returns assessor-
- * sourced fields only — `tax_current`/`tax_annual` are null until the
- * treasurer connector lands; 311-derived counters and `flood_zone` come
- * from other pipelines and are not surfaced here yet.
+ * sourced parcel fields plus the address-matched 311 landlord record
+ * (landlord_score + violations/bug counters). Tax bill (treasurer) and
+ * flood_zone (FEMA) are fetched by their own services, not here.
  *
  * @returns {Promise<{
  *   pin: string, address: string, owner: string|null,
@@ -65,8 +70,8 @@ export async function rpc(name, params = {}) {
  * } | null>}
  */
 const BUILDING_COLS =
-  'pin,address,owner,year_built,purchase_year,purchase_price,tax_current,tax_annual,' +
-  'violations_5yr,bug_reports,heat_complaints,landlord_score,flood_zone,school_elem';
+  'pin,address,owner,year_built,purchase_year,purchase_price,' +
+  'violations_5yr,bug_reports,landlord_score,school_elem';
 
 function shapeBuilding(r, distance_m) {
   return {
@@ -211,9 +216,7 @@ export async function getCcaById(ccaId) {
     const { data, error } = await supabase
       .from('ccas')
       .select('id,name,rent_median,safety_score,walk_score,vibe_score,disp_score,data_vintage,'
-        + 'composite_score,afford_score,vuln_score,bike_score,run_score,'
-        + 'housing_cost_mo,transport_cost_mo,income_median,poverty_rate,vacancy_rate,'
-        + 'renter_occupied_pct,transit_share,autos_per_hh')
+        + 'composite_score,afford_score,vuln_score,bike_score,run_score,transport_cost_mo')
       .eq('id', ccaId)
       .maybeSingle();
     if (!error && data) return data;
@@ -230,12 +233,14 @@ export async function getCcaById(ccaId) {
 let _ccaScores;
 export async function getCcaScores() {
   if (_ccaScores !== undefined) return _ccaScores;
-  if (!supabase) return (_ccaScores = []);
-  const { data, error } = await supabase
-    .from('ccas')
-    .select('id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
-      + 'disp_score,vibe_score,bike_score,run_score');
-  _ccaScores = !error && data ? data : [];
+  _ccaScores = await cachedJSON('ci.ccaScores', SCORES_TTL_MS, async () => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from('ccas')
+      .select('id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+        + 'disp_score,vibe_score,bike_score,run_score');
+    return !error && data ? data : [];
+  });
   return _ccaScores;
 }
 
@@ -247,17 +252,20 @@ export async function getCcaScores() {
 let _tractScores;
 export async function getTractScores() {
   if (_tractScores !== undefined) return _tractScores;
-  if (!supabase) return (_tractScores = []);
-  const cols = 'id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
-    + 'disp_score,vibe_score,bike_score,run_score';
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from('tracts').select(cols).range(from, from + 999);
-    if (error) return (_tractScores = rows);          // partial/none → what we have
-    rows.push(...data);
-    if (data.length < 1000) break;                    // last page
-  }
-  return (_tractScores = rows);
+  _tractScores = await cachedJSON('ci.tractScores', SCORES_TTL_MS, async () => {
+    if (!supabase) return [];
+    const cols = 'id,composite_score,afford_score,vuln_score,safety_score,walk_score,'
+      + 'disp_score,vibe_score,bike_score,run_score';
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase.from('tracts').select(cols).range(from, from + 999);
+      if (error) return rows;                          // partial/none → what we have (not cached if empty)
+      rows.push(...data);
+      if (data.length < 1000) break;                   // last page
+    }
+    return rows;
+  });
+  return _tractScores;
 }
 
 /**
@@ -273,7 +281,12 @@ export async function getBuildingsInTract(geoid) {
   if (!supabase || geoid == null) return empty;
   let rows;
   try {
-    rows = await rpc('building_footprints_in_tract', { p_geoid: geoid });
+    // Direct single call (no retry/breaker): optional map data, and the RPC can
+    // be slow when the buildings table is bloated — fail fast instead of
+    // retrying 5x (a statement timeout won't clear on retry) and hanging the map.
+    const { data, error } = await supabase.rpc('building_footprints_in_tract', { p_geoid: geoid });
+    if (error) return empty;
+    rows = data;
   } catch {
     return empty;
   }

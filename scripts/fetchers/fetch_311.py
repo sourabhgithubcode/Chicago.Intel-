@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 from sodapy import Socrata
@@ -40,10 +41,22 @@ RELEVANT_TYPES = (
 )
 
 
+def _date_floor() -> str:
+    """Incremental window for the daily cron, full backfill otherwise.
+
+    INCREMENTAL_DAYS=N → only fetch requests created within the last N days
+    (idempotent upsert keeps the already-loaded history). Unset → DATE_FLOOR.
+    """
+    n = os.getenv("INCREMENTAL_DAYS")
+    if n and n.isdigit() and int(n) > 0:
+        return (date.today() - timedelta(days=int(n))).isoformat()
+    return DATE_FLOOR
+
+
 def fetch_all() -> list[dict]:
     client = Socrata(DOMAIN, TOKEN, timeout=60)
     type_filter = " OR ".join(f"sr_type='{t}'" for t in RELEVANT_TYPES)
-    where = f"({type_filter}) AND latitude IS NOT NULL AND created_date >= '{DATE_FLOOR}'"
+    where = f"({type_filter}) AND latitude IS NOT NULL AND created_date >= '{_date_floor()}'"
 
     rows: list[dict] = []
     offset = 0

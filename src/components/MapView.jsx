@@ -15,6 +15,7 @@ import { getBuildingFootprint, getBuildingsInTract, getCcaGeojson, getCcaScores,
 import { getRoute } from '../lib/api/directions.js';
 import { allCcaFeatures } from '../lib/api/ccaStatic.js';
 import { allTractFeatures, tractsInCca } from '../lib/api/tractStatic.js';
+import { tractLabel } from '../lib/formatters/index.js';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
@@ -35,9 +36,18 @@ const TRANS = { duration: 600 };
 function fillLayer(reveal) {
   return {
     id: 'poly-fill', type: 'fill',
-    paint: { 'fill-color': 'rgba(37,99,235,0.12)', 'fill-opacity': reveal, 'fill-opacity-transition': TRANS },
+    paint: { 'fill-color': 'rgba(245,158,11,0.18)', 'fill-opacity': reveal, 'fill-opacity-transition': TRANS },
   };
 }
+
+// Bold amber outline for the SELECTED building's footprint (building level only)
+// so it reads as clearly picked — ties to the amber address marker seen when
+// zoomed out. Rendered on top of the thin shared poly-line; tract/CCA borders
+// stay thin.
+const BUILDING_HIGHLIGHT = {
+  id: 'bldg-highlight', type: 'line',
+  paint: { 'line-color': '#f59e0b', 'line-width': 3, 'line-opacity': 0.95 },
+};
 function lineLayer(reveal) {
   return {
     id: 'poly-line', type: 'line',
@@ -351,6 +361,16 @@ const LABEL_LAYER = {
   paint: { 'text-color': '#1e293b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.3 },
 };
 
+// Census-tract labels, shown at the neighborhood level (the tract choropleth).
+// Uses the formatted `label` (e.g. "Census Tract 8331"); Mapbox collision-hides
+// overlaps on tight tracts.
+const TRACT_LABEL_LAYER = {
+  id: 'tract-label',
+  type: 'symbol',
+  layout: { 'text-field': ['get', 'label'], 'text-size': 10 },
+  paint: { 'text-color': '#1e293b', 'text-halo-color': '#ffffff', 'text-halo-width': 1.3 },
+};
+
 // Building-view amenity pin — category icon (brand logo overlaid when known) +
 // always-visible name label; highlights when its list row is hovered, & v.v.
 function AmenityPin({ pt, hovered, pinned, onHover, onPin }) {
@@ -374,6 +394,22 @@ function AmenityPin({ pt, hovered, pinned, onHover, onPin }) {
           <span className="truncate text-[10px] font-medium text-slate-800">{pt.name || pt.label}</span>
         </div>
         <span className="-mt-px h-1.5 w-px bg-slate-500" />
+      </div>
+    </Marker>
+  );
+}
+
+// Pulsing "you selected this" ring at the searched address, shown when zoomed
+// out (city/neighborhood/tract) so the exact point stays locatable without
+// touching each level's blue-gradient fill. Amber contrasts the blue choropleth;
+// pointer-events off so it never blocks the drill-down map clicks.
+function AddressMarker({ lat, lng }) {
+  if (lat == null || lng == null) return null;
+  return (
+    <Marker longitude={lng} latitude={lat} anchor="center" style={{ pointerEvents: 'none' }}>
+      <div className="relative flex h-3.5 w-3.5 items-center justify-center">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full" style={{ backgroundColor: '#f59e0b', opacity: 0.55 }} />
+        <span className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-white shadow-md" style={{ backgroundColor: '#f59e0b' }} />
       </div>
     </Marker>
   );
@@ -443,7 +479,13 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
       ...geoJson,
       features: geoJson.features.map((f) => ({
         ...f,
-        properties: { ...f.properties, ...(scoreById[f.properties?.id] ?? {}) },
+        properties: {
+          ...f.properties,
+          ...(scoreById[f.properties?.id] ?? {}),
+          // CCAs already carry `name`; tracts only have a geoid → format it so
+          // the neighborhood-level tract label layer has something to show.
+          label: f.properties?.name ?? (f.properties?.id != null ? tractLabel(f.properties.id) : null),
+        },
       })),
     };
   }, [geoJson, scoreById]);
@@ -536,7 +578,9 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
           <Source id="poly" type="geojson" data={sourceData}>
             <Layer {...(choroplethActive ? choroplethFillLayer(colorBy, arealDomain) : fillLayer(reveal))} />
             <Layer {...lineLayer(reveal)} />
+            {layer === 'building' && <Layer {...BUILDING_HIGHLIGHT} />}
             {layer === 'city' && granularity === 'neighborhood' && <Layer {...LABEL_LAYER} />}
+            {layer === 'cca' && granularity === 'tracts' && <Layer {...TRACT_LABEL_LAYER} />}
           </Source>
         )}
 
@@ -588,6 +632,8 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
             </div>
           </Marker>
         )}
+
+        {layer !== 'building' && <AddressMarker lat={lat} lng={lng} />}
       </Map>
 
       {/* Top-left controls: granularity (city + neighborhood) + "Color by"

@@ -19,7 +19,7 @@ function relTime(iso) {
   return `synced ${Math.round(m / 60 / 24)}d ago`;
 }
 
-function Row({ icon: Icon, label, value, caveat, tooltip }) {
+function Row({ icon: Icon, label, value, caveat, tooltip, confidence, source }) {
   if (value == null || value === '') return null;
   const labelNode = tooltip ? (
     <Tooltip content={tooltip}>
@@ -32,11 +32,14 @@ function Row({ icon: Icon, label, value, caveat, tooltip }) {
         {Icon && <Icon size={11} />}
         {labelNode}
       </span>
-      <span className="text-t0 min-w-0 truncate whitespace-nowrap text-right" title={typeof value === 'string' ? value : undefined}>
-        {value}
-        {caveat && (
-          <span className="text-t3 ml-2 text-xs italic">· {caveat}</span>
-        )}
+      <span className="flex min-w-0 items-center justify-end gap-2">
+        <span className="text-t0 min-w-0 truncate whitespace-nowrap text-right" title={typeof value === 'string' ? value : undefined}>
+          {value}
+          {caveat && (
+            <span className="text-t3 ml-2 text-xs italic">· {caveat}</span>
+          )}
+        </span>
+        {confidence != null && <ConfidenceTag score={confidence} source={source} />}
       </span>
     </div>
   );
@@ -134,7 +137,7 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
                   ? `${fmtPrice(state.data.purchase_price)} in ${
                       state.data.purchase_year
                     }`
-                  : null
+                  : 'not recorded by Assessor'
               }
             />
             <Row
@@ -157,6 +160,8 @@ export default function BuildingDetail({ lat, lng, address, onLoaded }) {
                   : null
               }
               tooltip="Weighted 311 building violations + rodent complaints at this address over 5 years; higher = cleaner record."
+              confidence={state.data.landlord_score != null ? 7 : undefined}
+              source={{ label: 'Chicago 311', url: 'https://data.cityofchicago.org/' }}
             />
             <Row
               icon={Crosshair}
