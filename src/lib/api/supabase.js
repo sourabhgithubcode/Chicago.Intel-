@@ -281,7 +281,12 @@ export async function getBuildingsInTract(geoid) {
   if (!supabase || geoid == null) return empty;
   let rows;
   try {
-    rows = await rpc('building_footprints_in_tract', { p_geoid: geoid });
+    // Direct single call (no retry/breaker): optional map data, and the RPC can
+    // be slow when the buildings table is bloated — fail fast instead of
+    // retrying 5x (a statement timeout won't clear on retry) and hanging the map.
+    const { data, error } = await supabase.rpc('building_footprints_in_tract', { p_geoid: geoid });
+    if (error) return empty;
+    rows = data;
   } catch {
     return empty;
   }
