@@ -36,9 +36,18 @@ const TRANS = { duration: 600 };
 function fillLayer(reveal) {
   return {
     id: 'poly-fill', type: 'fill',
-    paint: { 'fill-color': 'rgba(37,99,235,0.12)', 'fill-opacity': reveal, 'fill-opacity-transition': TRANS },
+    paint: { 'fill-color': 'rgba(245,158,11,0.18)', 'fill-opacity': reveal, 'fill-opacity-transition': TRANS },
   };
 }
+
+// Bold amber outline for the SELECTED building's footprint (building level only)
+// so it reads as clearly picked — ties to the amber address marker seen when
+// zoomed out. Rendered on top of the thin shared poly-line; tract/CCA borders
+// stay thin.
+const BUILDING_HIGHLIGHT = {
+  id: 'bldg-highlight', type: 'line',
+  paint: { 'line-color': '#f59e0b', 'line-width': 3, 'line-opacity': 0.95 },
+};
 function lineLayer(reveal) {
   return {
     id: 'poly-line', type: 'line',
@@ -569,6 +578,7 @@ export default function MapView({ layer, lat, lng, ccaId, tractGeoid, onSelectAr
           <Source id="poly" type="geojson" data={sourceData}>
             <Layer {...(choroplethActive ? choroplethFillLayer(colorBy, arealDomain) : fillLayer(reveal))} />
             <Layer {...lineLayer(reveal)} />
+            {layer === 'building' && <Layer {...BUILDING_HIGHLIGHT} />}
             {layer === 'city' && granularity === 'neighborhood' && <Layer {...LABEL_LAYER} />}
             {layer === 'cca' && granularity === 'tracts' && <Layer {...TRACT_LABEL_LAYER} />}
           </Source>
