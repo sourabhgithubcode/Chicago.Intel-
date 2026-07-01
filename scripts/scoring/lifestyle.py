@@ -9,9 +9,10 @@ score only moves when its own OSM features move). Signals, confidence 6/10.
     run  = park-area coverage (0–1) + off-street path-length density, blended
 
 Each metric is computed independently and wrapped in try/except so one Overpass
-failure (timeout / empty) leaves the others intact; a CCA with no features scores
-0, not null. Park *points* already drive walk.py; here we use OSM park *polygons*
-for area coverage.
+failure (timeout / empty) leaves the others intact. A CCA with genuinely no OSM
+vibe/bike coverage scores NULL (renders "no data"), not a false 0.0; run keeps a
+real 0.0 (zero park access is a measurement, not missing data). Park *points*
+already drive walk.py; here we use OSM park *polygons* for area coverage.
 
 Run: `.venv/bin/python scripts/scoring/lifestyle.py`  (hits Overpass; slow).
 """
@@ -42,6 +43,12 @@ M_CRS = 26971  # Illinois East (meters) for area/length
 VIBE_FULL = 80.0   # food/drink POIs per km² for full vibe credit (~dense corridor)
 BIKE_FULL = 3.0    # km of cycleway per km² for full bike credit
 PATH_FULL = 5.0    # km of off-street path per km² for full path credit
+GREEN_FULL = 0.20  # parkland fraction (20% of area) for full park-coverage credit
+
+# Below these, OSM coverage is genuinely absent (not "low") → write NULL, not a
+# false 0.0 the UI would render as a real "0/10" + map colour.
+VIBE_MIN_POIS = 1     # need ≥1 food/drink POI to score vibe at all
+BIKE_MIN_KM = 0.05    # <50 m of cycleway in the area = overlay sliver / no data
 
 
 def _overpass(body: str) -> dict:
@@ -124,7 +131,9 @@ def _score_polys(poly_m, osm) -> dict:
         cnt = j.groupby("id").size().to_dict()
         for r in poly_m.itertuples():
             if r.area_km2 > 0:
-                scores[r.id]["vibe_score"] = _anchor(cnt.get(r.id, 0) / r.area_km2, VIBE_FULL)
+                c = cnt.get(r.id, 0)
+                scores[r.id]["vibe_score"] = (
+                    _anchor(c / r.area_km2, VIBE_FULL) if c >= VIBE_MIN_POIS else None)
 
     if bike_lines is not None and not bike_lines.empty:
         clipped = gpd.overlay(gpd.GeoDataFrame(geometry=bike_lines.geometry).assign(g=1),
@@ -133,7 +142,9 @@ def _score_polys(poly_m, osm) -> dict:
         kml = clipped.dropna(subset=["id"]).groupby("id")["km"].sum().to_dict()
         for r in poly_m.itertuples():
             if r.area_km2 > 0:
-                scores[r.id]["bike_score"] = _anchor(kml.get(r.id, 0.0) / r.area_km2, BIKE_FULL)
+                km = kml.get(r.id, 0.0)
+                scores[r.id]["bike_score"] = (
+                    _anchor(km / r.area_km2, BIKE_FULL) if km >= BIKE_MIN_KM else None)
 
     if park_polys is not None or path_lines is not None:
         park_area, path_km = {}, {}
@@ -150,7 +161,11 @@ def _score_polys(poly_m, osm) -> dict:
         for r in poly_m.itertuples():
             if r.area_km2 <= 0:
                 continue
-            green = min(park_area.get(r.id, 0.0) / r.area_km2, 1.0)
+            # Anchor park coverage on GREEN_FULL (a realistic "lots of parkland"
+            # fraction), not 1.0 — full credit needs a fraction no real CCA hits,
+            # which compressed every score below ~5.2. Anchoring reflects park
+            # ACCESS and uses the full 0–10 range.
+            green = min(park_area.get(r.id, 0.0) / r.area_km2 / GREEN_FULL, 1.0)
             paths = min(path_km.get(r.id, 0.0) / r.area_km2 / PATH_FULL, 1.0)
             scores[r.id]["run_score"] = round(max(0.0, min(10.0, green * 6.0 + paths * 4.0)), 2)
 

@@ -3,8 +3,8 @@
 Source: data.cityofchicago.org/resource/igwz-8jzy (Community Area Boundaries).
 GeoJSON endpoint — 77 features, one per community area.
 
-After geometry is loaded, run these SQL steps to populate scores:
-  1. assign_tracts_to_ccas()  -- sets tracts.cca_id via spatial join
+After geometry is loaded, run these steps to populate scores:
+  1. scripts/scoring/assign_ccas.py  -- sets tracts.cca_id via spatial join
   2. UPDATE ccas safety_score -- from cpd_incidents
   3. UPDATE ccas disp_score   -- from displacement_typology via tracts
   4. UPDATE ccas rent_median  -- population-weighted avg from tracts

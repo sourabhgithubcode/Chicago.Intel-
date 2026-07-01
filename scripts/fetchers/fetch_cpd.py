@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import sys
+from datetime import date, timedelta
 from pathlib import Path
 
 from sodapy import Socrata
@@ -25,16 +26,29 @@ PAGE_SIZE = 50_000           # Socrata's hard cap per request for this dataset
 DATE_FLOOR = "2020-01-01"    # 5-year window for gold_address_intel violent/property counts
 
 
+def _date_floor() -> str:
+    """Incremental window for the daily cron, full backfill otherwise.
+
+    INCREMENTAL_DAYS=N → only fetch incidents dated within the last N days
+    (idempotent upsert keeps the already-loaded history). Unset → DATE_FLOOR.
+    """
+    n = os.getenv("INCREMENTAL_DAYS")
+    if n and n.isdigit() and int(n) > 0:
+        return (date.today() - timedelta(days=int(n))).isoformat()
+    return DATE_FLOOR
+
+
 def fetch_all() -> list[dict]:
-    """Page through CPD incidents from DATE_FLOOR forward."""
+    """Page through CPD incidents from the date floor forward."""
     client = Socrata(DOMAIN, TOKEN, timeout=60)
+    floor = _date_floor()
     rows: list[dict] = []
     offset = 0
     while True:
         chunk = client.get(
             DATASET,
             select="id,date,primary_type,latitude,longitude,iucr",
-            where=f"latitude IS NOT NULL AND date >= '{DATE_FLOOR}'",
+            where=f"latitude IS NOT NULL AND date >= '{floor}'",
             limit=PAGE_SIZE,
             offset=offset,
         )

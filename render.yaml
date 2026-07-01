@@ -25,9 +25,10 @@ services:
 
   # ─── Data pipeline cron jobs ───────────────────────────────────────────
   # Per-source schedules keyed to how often each source actually publishes.
-  # All crons run with --bronze-only while the data-load freeze is in place
-  # (memory: project_data_load_freeze.md). When per-source transformer
-  # cleaning is validated, drop --bronze-only here to enable silver upserts.
+  # Freeze status (memory: project_data_load_freeze.md): the daily cron
+  # (cpd, 311) is VALIDATED — transformer output reproduces prod silver, so it
+  # loads silver (no --bronze-only). The monthly (assessor) + quarterly crons
+  # stay --bronze-only until their transformers are validated the same way.
 
   # CPD crime + 311 violations — daily (sources update continuously)
   - type: cron
@@ -35,8 +36,14 @@ services:
     runtime: python
     schedule: "0 9 * * *"  # 4am Central daily
     buildCommand: pip install -r scripts/requirements.txt
-    startCommand: python scripts/orchestrator.py --sources cpd,311 --bronze-only --skip-backup
+    startCommand: python scripts/orchestrator.py --sources cpd,311 --skip-backup
     envVars: &cron_env
+      # Incremental window for the daily silver load — only cpd/311 fetchers
+      # read it. 90d safely covers the freeze gap and re-catches updated rows;
+      # the upsert is idempotent (ON CONFLICT by PK) so re-loading the window
+      # daily is cheap. The bronze-only crons inherit it harmlessly.
+      - key: INCREMENTAL_DAYS
+        value: "90"
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_KEY

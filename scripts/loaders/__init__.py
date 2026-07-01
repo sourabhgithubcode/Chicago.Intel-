@@ -39,18 +39,27 @@ SILVER_TABLE = {
 }
 
 
+# PostgREST upserts a whole batch in one statement; a single huge upsert
+# (e.g. a full CPD reload, 1.47M rows) exceeds the statement timeout. Chunk it.
+UPSERT_CHUNK = 1000
+
+
 def load_all(client, fetched: dict[str, list[dict]],
-             rows_in_by_source: dict[str, int] | None = None):
+             rows_in_by_source: dict[str, int] | None = None) -> dict[str, int]:
     """
-    Write each source's rows into its silver table via upsert,
+    Write each source's rows into its silver table via chunked upsert,
     then refresh the gold layer once all silver loads succeed.
 
     `rows_in_by_source` is optional — bronze row count per source. When
     supplied, we run the bronze→silver failure-rate check (§15). Without
     it, that check is skipped (a fetcher that doesn't track bronze rows
     can still load).
+
+    Returns {source: rows_upserted} so the caller can record a pipeline_runs
+    row (frontend freshness UI + the run-over-run drift baseline).
     """
     rows_in_by_source = rows_in_by_source or {}
+    upserted: dict[str, int] = {}
 
     for source, rows in fetched.items():
         table = SILVER_TABLE.get(source)
@@ -70,20 +79,27 @@ def load_all(client, fetched: dict[str, list[dict]],
 
             assert_row_count_drift(client, source, observed=len(rows))
 
-            client.table(table).upsert(rows).execute()
+            for i in range(0, len(rows), UPSERT_CHUNK):
+                client.table(table).upsert(rows[i:i + UPSERT_CHUNK]).execute()
+            upserted[source] = len(rows)
             log.info("silver_load_ok", source=source, table=table, rows=len(rows))
         except Exception as e:
             log.error("silver_load_failed", source=source, table=table, error=str(e))
             raise
 
     refresh_gold(client)
+    return upserted
 
 
 def refresh_gold(client):
-    """Refresh all gold materialized views via the refresh_gold_layer() RPC."""
+    """Refresh gold materialized views via the refresh_gold_layer() RPC.
+
+    Non-fatal: the dashboard reads the `ccas`/`tracts` tables + RPCs, never the
+    gold_* views, so a failed/timed-out refresh must not fail an otherwise good
+    silver load. We attempt it and warn on failure rather than raising.
+    """
     try:
         client.rpc("refresh_gold_layer").execute()
         log.info("gold_refresh_ok")
     except Exception as e:
-        log.error("gold_refresh_failed", error=str(e))
-        raise
+        log.warning("gold_refresh_skipped", error=str(e))

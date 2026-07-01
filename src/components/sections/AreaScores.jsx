@@ -74,7 +74,7 @@ export default function AreaScores({ level, id }) {
               tooltip="Weighted blend: affordability 40%, vulnerability 15%, safety 15%, walk 10%, displacement 10%, vibe 4%, bike 3%, run 3%. Normalized 1–10 across the 77 neighborhoods. A comparison — not a recommendation."
               confidence={6} source={{ label: 'Weighted blend' }} />
             <Row icon={Wallet} label="Affordability score" value={score(d.afford_score)}
-              tooltip="Housing + transport cost ÷ $75,134 (Chicago median household income). Lower cost-share = higher score; HUD's 45% H+T benchmark ≈ 5/10. Our estimate — NOT HUD's published Location Affordability Index."
+              tooltip="Housing + transport cost ÷ $75,134 (Chicago median household income). Lower cost-share = higher score; HUD's 45% H+T benchmark ≈ 5/10. Because it divides by a fixed citywide income, very low-rent but distressed areas can still score as highly affordable. Our estimate — NOT HUD's published Location Affordability Index."
               confidence={6} source={{ label: 'ACS + our H+T model' }} />
             <Row icon={DollarSign} label="Median rent (ACS)"
               value={d.rent_median ? `$${d.rent_median.toLocaleString()}/mo` : null}
@@ -113,8 +113,8 @@ export default function AreaScores({ level, id }) {
                 tooltip="Park-area coverage + off-street path access (OpenStreetMap). Signal only."
                 confidence={6} source={{ label: 'OpenStreetMap' }} />
             )}
-            <Row icon={Clock} label="Data vintage" value={d.data_vintage}
-              tooltip="The survey period this data covers." />
+            <Row icon={Clock} label="ACS data vintage" value={d.data_vintage}
+              tooltip="Survey period for the ACS-derived figures (rent, affordability, vulnerability). Crime, displacement, and OSM signals each carry their own source and period in the rows above." />
           </div>
 
           <details className="text-t2">

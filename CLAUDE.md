@@ -198,13 +198,20 @@ Cost efficiency:     20% (grocery tier, dining tier, parking delta)
 ## Composite Address Score
 
 ```
-Financial Reality Index:  40% weight
-Livability Index:         30% weight
-Stability Index:          20% weight
-Opportunity Index:        10% weight
+Affordability:   40% weight
+Vulnerability:   15% weight
+Safety:          15% weight
+Walk:            10% weight
+Displacement:    10% weight
+Vibe:             4% weight
+Bike:             3% weight
+Run:              3% weight
 ```
 
-All weights documented in `src/lib/confidence.js`.
+Weights are defined in `scripts/scoring/composite.py` (`WEIGHTS`) and mirrored
+in the `AreaScores.jsx` "Overall score" tooltip — those two are the source of
+truth; keep them in sync. The blend is renormalized over whichever sub-scores a
+CCA/tract actually has, then min-max normalized to 1–10 within that grain.
 User can view raw component scores without the composite.
 Never present composite score as a recommendation.
 
